@@ -29,11 +29,13 @@ const teacherCodes = {
   "PANACHEV2026": "Паначев С.Л",
   "PROKOPIEVA2026": "Прокопьева Р.Р",
   "RAMAZANOVA2026": "Рамазанова А.Л",
+  "SADRYEVA2026": "Садрыева Е.П",
   "SULTANOVA2026": "Султанова Э.Ф",
   "SYCHEV2026": "Сычев С.В",
   "TRAPEZNIKOVA2026": "Трапезникова Л.А",
   "HADYEVA2026": "Хадыева И.Э",
   "HAMIDULLINA2026": "Хамидуллина З.Р",
   "HUZHINA2026": "Хужина Н.В",
+  "SHOLOKHOVA2026": "Шолохова И.В",
   "YARUSHINA2026": "Ярушина В.Г"
 };
