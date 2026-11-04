@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Расписание колледжа</title>
+    <!-- Подключение MAX Bridge -->
+    <script src="https://st.max.ru/js/max-web-app.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; font-size: 20px; }
+        select, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
+        button { background-color: #007bff; color: white; border: none; font-weight: bold; cursor: pointer; }
+        button:active { opacity: 0.8; }
+        .schedule-item { padding: 10px; border-bottom: 1px solid #eee; }
+        .time { font-weight: bold; color: #007bff; }
+        .subject { font-weight: 500; margin-top: 4px; }
+        .room { color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📅 Расписание</h1>
+        
+        <select id="groupSelect">
+            <option value="">Выберите группу</option>
+            <option value="ИС-21">ИС-21</option>
+            <option value="ИС-22">ИС-22</option>
+            <option value="ПКС-21">ПКС-21</option>
+        </select>
+        
+        <button id="loadBtn">Показать расписание</button>
+        
+        <div id="scheduleList"></div>
+    </div>
+
+    <script>
+        // Инициализация MAX Bridge
+        try {
+            if (window.WebApp) {
+                window.WebApp.ready(); // Сообщаем MAX, что приложение готово
+                console.log("MAX Bridge initialized");
+                
+                // Настройка кнопки "Назад" (если нужно)
+                if (window.WebApp.backButton) {
+                    window.WebApp.backButton.show();
+                    window.WebApp.backButton.onClick(() => {
+                        // Логика возврата
+                    });
+                }
+            }
+        } catch (e) {
+            console.log("Работаем вне MAX (для отладки в браузере)");
+        }
+
+        const loadBtn = document.getElementById('loadBtn');
+        const groupSelect = document.getElementById('groupSelect');
+        const scheduleList = document.getElementById('scheduleList');
+
+        loadBtn.addEventListener('click', async () => {
+            const group = groupSelect.value;
+            if (!group) {
+                alert('Пожалуйста, выберите группу');
+                return;
+            }
+            
+            scheduleList.innerHTML = '<p>Загрузка...</p>';
+
+            // ЗДЕСЬ ДОЛЖЕН БЫТЬ ВАШ ЗАПРОС К API КОЛЛЕДЖА
+            // Пример: const response = await fetch(`https://api.your-college.ru/schedule?group=${group}`);
+            // const data = await response.json();
+            
+            // Для примера используем заглушку (имитация данных)
+            const mockData = getMockData(group);
+            
+            // Имитация задержки сети
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            renderSchedule(mockData);
+        });
+
+        function getMockData(group) {
+            // Это просто пример! В реальности данные должны приходить с сервера
+            const data = {
+                'ИС-21': [
+                    { time: '09:00 - 10:30', subject: 'Математика', room: 'каб. 201' },
+                    { time: '10:45 - 12:15', subject: 'Программирование', room: 'каб. 305' },
+                    { time: '13:00 - 14:30', subject: 'Базы данных', room: 'каб. 306' },
+                ],
+                'ИС-22': [
+                    { time: '09:00 - 10:30', subject: 'Физика', room: 'каб. 105' },
+                    { time: '10:45 - 12:15', subject: 'Веб-разработка', room: 'каб. 301' },
+                ],
+                'ПКС-21': [
+                    { time: '09:00 - 10:30', subject: 'Сети', room: 'каб. 202' },
+                    { time: '10:45 - 12:15', subject: 'ОС', room: 'каб. 203' },
+                ]
+            };
+            return data[group] || [];
+        }
+
+        function renderSchedule(items) {
+            if (items.length === 0) {
+                scheduleList.innerHTML = '<p>На сегодня занятий нет.</p>';
+                return;
+            }
+            
+            scheduleList.innerHTML = items.map(item => `
+                <div class="schedule-item">
+                    <div class="time">${item.time}</div>
+                    <div class="subject">${item.subject}</div>
+                    <div class="room">${item.room}</div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
