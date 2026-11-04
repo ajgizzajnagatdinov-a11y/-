@@ -3,51 +3,251 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Расписание колледжа</title>
+    <title>Расписание занятий</title>
     <script src="https://st.max.ru/js/max-web-app.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 15px; background-color: #f5f5f5; margin: 0; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #333; font-size: 20px; margin-top: 0; text-align: center; }
-        select, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
-        button { background-color: #007bff; color: white; border: none; font-weight: bold; cursor: pointer; }
-        button:active { opacity: 0.8; }
-        .day-title { background: #007bff; color: white; padding: 8px 12px; border-radius: 6px; margin-top: 20px; font-weight: bold; text-transform: uppercase; font-size: 14px; }
-        .schedule-item { padding: 12px; border-bottom: 1px solid #eee; display: flex; align-items: flex-start; }
-        .lesson-num { font-weight: bold; color: #007bff; width: 25px; flex-shrink: 0; }
-        .content { margin-left: 10px; }
-        .subject { font-weight: 500; margin-bottom: 2px; color: #222; }
-        .room { color: #666; font-size: 14px; }
-        .empty { color: #999; font-style: italic; padding: 20px; text-align: center; }
+        :root {
+            --bg-color: #1a1c23;
+            --card-bg: #262933;
+            --text-main: #ffffff;
+            --text-muted: #9ba1ad;
+            --accent: #2196f3;
+            --border-radius: 12px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px 15px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        /* Шапка */
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .header h1 {
+            font-size: 24px;
+            margin: 0 0 5px 0;
+            font-weight: bold;
+        }
+        .header p {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin: 0;
+        }
+
+        /* Сетка дней */
+        .days-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .day-card {
+            background-color: var(--card-bg);
+            border: 1px solid #3d4250;
+            border-radius: var(--border-radius);
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .day-card:hover, .day-card.active {
+            border-color: var(--accent);
+            background-color: #2d3341;
+        }
+
+        .day-card-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .day-card-date {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        
+        /* Если сегодня - выделяем рамку */
+        .day-card.is-today {
+            border: 2px solid var(--accent);
+        }
+
+        /* Кнопка звонков */
+        .btn-bells {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1976d2, #2196f3);
+            color: white;
+            text-decoration: none;
+            padding: 15px;
+            border-radius: var(--border-radius);
+            font-weight: bold;
+            font-size: 16px;
+            text-align: center;
+            border: none;
+            width: 100%;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+        
+        .btn-bells span {
+            font-size: 12px;
+            font-weight: normal;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+
+        /* Блок с уроками */
+        #schedule-content {
+            margin-top: 25px;
+            display: none; /* Скрыто по умолчанию */
+        }
+
+        .schedule-day-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: var(--accent);
+            border-bottom: 1px solid #3d4250;
+            padding-bottom: 10px;
+        }
+
+        .lesson-item {
+            display: flex;
+            margin-bottom: 12px;
+            background: #2d3341;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .lesson-time {
+            font-weight: bold;
+            color: var(--accent);
+            width: 30px;
+            flex-shrink: 0;
+        }
+
+        .lesson-info {
+            margin-left: 10px;
+        }
+
+        .lesson-subject {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .lesson-room {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        
+        .back-btn {
+            background: none;
+            border: 1px solid var(--text-muted);
+            color: var(--text-main);
+            padding: 10px;
+            border-radius: 8px;
+            width: 100%;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>📅 Расписание</h1>
+    <div class="app-container">
         
-        <select id="groupSelect">
-            <option value="">Загрузка...</option>
-        </select>
-        
-        <button id="loadBtn">Показать расписание</button>
-        
-        <div id="scheduleList"></div>
+        <div class="header">
+            <h1>Расписание занятий</h1>
+            <p>ГБПОУ МПК</p>
+        </div>
+
+        <!-- Экран выбора дня -->
+        <div id="main-screen">
+            <!-- Выбор группы (сохраняется в памяти) -->
+            <div style="margin-bottom: 15px; text-align: center;">
+                <select id="groupSelect" style="padding: 10px; border-radius: 8px; font-size: 16px; background: var(--card-bg); color: white; border: 1px solid #3d4250; width: 100%;">
+                    <option value="">Загрузка...</option>
+                </select>
+            </div>
+
+            <div class="days-grid" id="daysGrid">
+                <!-- Карточки дней будут добавлены через JS -->
+            </div>
+
+            <button class="btn-bells" id="bellsBtn">
+                Расписание звонков
+                <span>время начала и конца пар</span>
+            </button>
+        </div>
+
+        <!-- Экран с уроками -->
+        <div id="schedule-content">
+            <!-- Сюда выводятся уроки -->
+            <button class="back-btn" id="backBtn">← Назад к выбору дня</button>
+        </div>
     </div>
-<script src="data.js"></script>
-    
-        <script>
+
+    <!-- Подключаем данные из data.js -->
+    <script src="data.js"></script>
+
+    <script>
         // Инициализация MAX Bridge
         try {
-            if (window.WebApp) {
-                window.WebApp.ready();
-            }
+            if (window.WebApp) window.WebApp.ready();
         } catch (e) { console.log("Вне MAX"); }
 
         const groupSelect = document.getElementById('groupSelect');
-        const loadBtn = document.getElementById('loadBtn');
-        const scheduleList = document.getElementById('scheduleList');
+        const daysGrid = document.getElementById('daysGrid');
+        const mainScreen = document.getElementById('main-screen');
+        const scheduleContent = document.getElementById('schedule-content');
+        const backBtn = document.getElementById('backBtn');
 
-        // 1. Заполняем список группами
+        const daysOfWeek = [
+            { name: 'Понедельник', index: 1, short: 'ПН' },
+            { name: 'Вторник', index: 2, short: 'ВТ' },
+            { name: 'Среда', index: 3, short: 'СР' },
+            { name: 'Четверг', index: 4, short: 'ЧТ' },
+            { name: 'Пятница', index: 5, short: 'ПТ' },
+            { name: 'Суббота', index: 6, short: 'СБ' }
+        ];
+
+        // Функция для получения дат текущей недели
+        function getCurrentWeekDates() {
+            const today = new Date();
+            // В России неделя начинается с понедельника
+            const currentDay = today.getDay() === 0 ? 7 : today.getDay(); 
+            const monday = new Date(today);
+            monday.setDate(today.getDate() - currentDay + 1);
+
+            const dates = [];
+            for (let i = 0; i < 6; i++) {
+                const d = new Date(monday);
+                d.setDate(monday.getDate() + i);
+                dates.push({
+                    day: d.getDate().toString().padStart(2, '0'),
+                    month: (d.getMonth() + 1).toString().padStart(2, '0'),
+                    year: d.getFullYear()
+                });
+            }
+            return dates;
+        }
+
+        // Заполняем список группами
         function initGroups() {
             const groups = new Set();
             for (const day in scheduleData) {
@@ -56,84 +256,102 @@
                 }
             }
             
+            const savedGroup = localStorage.getItem('savedGroup') || "";
+            
             groupSelect.innerHTML = '<option value="">Выберите группу</option>';
             Array.from(groups).sort().forEach(group => {
                 const option = document.createElement('option');
                 option.value = group;
                 option.textContent = group;
+                if (group === savedGroup) option.selected = true;
                 groupSelect.appendChild(option);
+            });
+            
+            // Сохраняем при смене
+            groupSelect.addEventListener('change', (e) => {
+                localStorage.setItem('savedGroup', e.target.value);
+                renderDaysGrid();
             });
         }
 
-        // 2. Функция отрисовки расписания
-        function renderSchedule(group) {
+        // Отрисовываем карточки дней
+        function renderDaysGrid() {
+            const weekDates = getCurrentWeekDates();
+            const todayIndex = new Date().getDay() === 0 ? 7 : new Date().getDay(); // 1-7
+            
+            daysGrid.innerHTML = '';
+            
+            daysOfWeek.forEach((day, i) => {
+                const date = weekDates[i];
+                const card = document.createElement('div');
+                card.className = 'day-card';
+                if (day.index === todayIndex) card.classList.add('is-today');
+                
+                card.innerHTML = `
+                    <div class="day-card-title">${day.name}</div>
+                    <div class="day-card-date">${date.day}.${date.month}.${date.year}</div>
+                `;
+                
+                card.onclick = () => showScheduleForDay(day.name.toUpperCase(), `${day.name} (${date.day}.${date.month})`);
+                daysGrid.appendChild(card);
+            });
+        }
+
+        // Показ расписания на конкретный день
+        function showScheduleForDay(dayName, displayTitle) {
+            const group = groupSelect.value;
             if (!group) {
-                scheduleList.innerHTML = '<p class="empty">Выберите группу из списка выше.</p>';
+                alert("Пожалуйста, сначала выберите группу!");
                 return;
             }
 
-            scheduleList.innerHTML = '';
-            let hasLessons = false;
-
-            for (const [day, groups] of Object.entries(scheduleData)) {
-                const lessons = groups[group];
-                
-                if (lessons && lessons.length > 0) {
-                    hasLessons = true;
-                    const dayDiv = document.createElement('div');
-                    dayDiv.innerHTML = `<div class="day-title">${day}</div>`;
-                    
-                    lessons.forEach(lesson => {
-                        const item = document.createElement('div');
-                        item.className = 'schedule-item';
-                        item.innerHTML = `
-                            <div class="lesson-num">${lesson.time}.</div>
-                            <div class="content">
-                                <div class="subject">${lesson.subject}</div>
-                                ${lesson.room ? `<div class="room">каб. ${lesson.room}</div>` : ''}
-                            </div>
-                        `;
-                        dayDiv.appendChild(item);
-                    });
-                    scheduleList.appendChild(dayDiv);
+            // Находим данные
+            let lessons = null;
+            for (const d in scheduleData) {
+                if (d.includes(dayName) || dayName.includes(d)) {
+                    lessons = scheduleData[d][group];
+                    break;
                 }
             }
 
-            if (!hasLessons) {
-                scheduleList.innerHTML = '<p class="empty">Для этой группы нет занятий.</p>';
+            mainScreen.style.display = 'none';
+            scheduleContent.style.display = 'block';
+            
+            let html = `<div class="schedule-day-title">${displayTitle}</div>`;
+            
+            if (lessons && lessons.length > 0) {
+                lessons.forEach(lesson => {
+                    html += `
+                        <div class="lesson-item">
+                            <div class="lesson-time">${lesson.time}.</div>
+                            <div class="lesson-info">
+                                <div class="lesson-subject">${lesson.subject}</div>
+                                ${lesson.room ? `<div class="lesson-room">каб. ${lesson.room}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                html += '<p style="text-align:center; color:gray;">В этот день занятий нет.</p>';
             }
+            
+            // Добавляем кнопку "Назад" в конец блока
+            scheduleContent.innerHTML = html + '<button class="back-btn" onclick="goBack()">← Назад к выбору дня</button>';
         }
 
-        // 3. Обработчик кнопки
-        loadBtn.addEventListener('click', () => {
-            const group = groupSelect.value;
-            if (!group) {
-                alert('Пожалуйста, выберите группу');
-                return;
-            }
-            
-            // Сохраняем выбор в память браузера
-            localStorage.setItem('savedGroup', group);
-            
-            // Показываем расписание
-            renderSchedule(group);
-        });
-
-        // 4. Проверяем, сохранена ли группа при загрузке
-        function checkSavedGroup() {
-            const savedGroup = localStorage.getItem('savedGroup');
-            
-            if (savedGroup) {
-                // Если группа была сохранена, ставим её в выпадающий список
-                groupSelect.value = savedGroup;
-                // И сразу показываем расписание
-                renderSchedule(savedGroup);
-            }
+        window.goBack = function() {
+            scheduleContent.style.display = 'none';
+            mainScreen.style.display = 'block';
         }
 
-        // Запускаем всё при старте
+        // Заглушка для звонков
+        document.getElementById('bellsBtn').onclick = () => {
+            alert("Звонки:\n1. 09:00 - 09:45\n2. 09:50 - 10:35\n3. 10:45 - 11:35\n4. 11:35 - 12:20\n5. 13:00 - 13:45\n6. 13:50 - 14:35\n7. 14:45 - 15:30\n8. 15:35 - 16:20");
+        };
+
+        // Запуск
         initGroups();
-        checkSavedGroup(); // Проверяем сохраненную группу
+        renderDaysGrid();
     </script>
 </body>
 </html>
