@@ -5,44 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Расписание</title>
     <script src="https://st.max.ru/js/max-web-app.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
-            --bg-color: #1a1c23;
-            --card-bg: #262933;
-            --card-hover: #2d3341;
-            --text-main: #ffffff;
-            --text-muted: #9ba1ad;
-            --accent: #2196f3;
-            --border-radius: 12px;
+            --bg-color: #1a1c23; --card-bg: #262933; --card-hover: #2d3341;
+            --text-main: #ffffff; --text-muted: #9ba1ad; --accent: #2196f3; --border-radius: 12px;
         }
-
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            margin: 0;
-            padding: 20px 15px;
-            display: flex;
-            justify-content: center;
-            overflow-x: hidden;
+            background-color: var(--bg-color); color: var(--text-main);
+            margin: 0; padding: 20px 15px; display: flex; justify-content: center; overflow-x: hidden;
         }
-
         .app-container { width: 100%; max-width: 600px; }
-
         .header { text-align: center; margin-bottom: 20px; }
         .header h1 { font-size: 24px; margin: 0 0 5px 0; font-weight: bold; }
         .header p { color: var(--text-muted); font-size: 14px; margin: 0; }
 
-        /* Переключатель (3 вкладки) */
-        .mode-toggle {
-            display: flex; background: var(--card-bg); border-radius: 8px;
-            padding: 4px; margin-bottom: 15px;
-        }
-        .mode-btn {
-            flex: 1; padding: 10px; text-align: center; border-radius: 6px;
-            cursor: pointer; font-weight: bold; color: var(--text-muted); transition: all 0.2s;
+        /* Плашка уведомления */
+        .notification-banner {
+            background: linear-gradient(135deg, #e53935, #ff5252);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            animation: pulse 2s infinite;
+            box-shadow: 0 4px 15px rgba(229, 57, 53, 0.3);
         }
+        .notification-banner.hidden { display: none; }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        .mode-toggle { display: flex; background: var(--card-bg); border-radius: 8px; padding: 4px; margin-bottom: 15px; }
+        .mode-btn { flex: 1; padding: 10px; text-align: center; border-radius: 6px; cursor: pointer; font-weight: bold; color: var(--text-muted); transition: all 0.2s; font-size: 14px; }
         .mode-btn.active { background: var(--accent); color: white; }
 
         .selector { margin-bottom: 20px; }
@@ -52,43 +55,24 @@
             outline: none; appearance: none; text-align: center; font-weight: bold;
             box-sizing: border-box; margin-bottom: 10px;
         }
-        
         .hidden { display: none !important; }
 
-        .btn-login {
-            width: 100%; padding: 12px; border-radius: 8px; font-size: 16px;
-            background: var(--accent); color: white; border: none; font-weight: bold;
-            cursor: pointer; margin-top: 5px;
-        }
-        .btn-logout {
-            width: 100%; padding: 10px; border-radius: 8px; font-size: 14px;
-            background: transparent; color: var(--text-muted); border: 1px solid var(--text-muted);
-            cursor: pointer; margin-bottom: 15px;
-        }
+        .btn-login { width: 100%; padding: 12px; border-radius: 8px; font-size: 16px; background: var(--accent); color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        .btn-logout { width: 100%; padding: 10px; border-radius: 8px; font-size: 14px; background: transparent; color: var(--text-muted); border: 1px solid var(--text-muted); cursor: pointer; margin-bottom: 15px; }
 
-        .days-grid {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;
-        }
-        .day-card {
-            background-color: var(--card-bg); border: 1px solid #3d4250;
-            border-radius: var(--border-radius); padding: 15px; cursor: pointer; transition: all 0.2s;
-        }
+        .days-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .day-card { background-color: var(--card-bg); border: 1px solid #3d4250; border-radius: var(--border-radius); padding: 15px; cursor: pointer; transition: all 0.2s; }
         .day-card:active { background-color: var(--card-hover); }
         .day-card-title { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
         .day-card-date { font-size: 14px; color: var(--text-muted); }
-        
-        .day-card.is-today {
-            border: 1px solid var(--accent);
-            background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), transparent);
-        }
+        .day-card.is-today { border: 1px solid var(--accent); background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), transparent); }
         .day-card.is-today .day-card-title { color: var(--accent); }
 
         .btn-bells {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: linear-gradient(135deg, #1976d2, #2196f3);
-            color: white; padding: 15px; border-radius: var(--border-radius);
-            font-weight: bold; font-size: 16px; border: none; width: 100%;
-            cursor: pointer; box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+            background: linear-gradient(135deg, #1976d2, #2196f3); color: white; padding: 15px;
+            border-radius: var(--border-radius); font-weight: bold; font-size: 16px;
+            border: none; width: 100%; cursor: pointer; box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
         }
         .btn-bells span { font-size: 12px; font-weight: normal; opacity: 0.8; margin-top: 4px; }
 
@@ -97,51 +81,20 @@
         .back-icon { font-size: 24px; cursor: pointer; margin-right: 10px; color: var(--accent); }
         .schedule-day-title { font-size: 20px; font-weight: bold; margin: 0; }
         
-        .lesson-item {
-            display: flex; margin-bottom: 10px; background: var(--card-bg);
-            padding: 14px; border-radius: 8px; border-left: 4px solid var(--accent);
-        }
+        .lesson-item { display: flex; margin-bottom: 10px; background: var(--card-bg); padding: 14px; border-radius: 8px; border-left: 4px solid var(--accent); }
         .lesson-time { font-weight: bold; color: var(--accent); width: 25px; flex-shrink: 0; }
         .lesson-info { margin-left: 10px; flex: 1; }
         .lesson-subject { font-weight: 500; margin-bottom: 4px; }
         .lesson-room { font-size: 13px; color: var(--text-muted); }
         .lesson-teacher { font-size: 13px; color: #ffb74d; margin-top: 4px; }
 
-        /* Стили для вкладки замен */
-        .replacement-image-container {
-            background: var(--card-bg);
-            border-radius: var(--border-radius);
-            padding: 10px;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .replacement-image-container img {
-            width: 100%;
-            border-radius: 8px;
-            display: block;
-        }
-        .no-image-text {
-            color: var(--text-muted);
-            padding: 40px 20px;
-            text-align: center;
-            border: 2px dashed #3d4250;
-            border-radius: 8px;
-        }
+        .replacement-image-container { background: var(--card-bg); border-radius: var(--border-radius); padding: 10px; text-align: center; margin-bottom: 20px; }
+        .replacement-image-container img { width: 100%; border-radius: 8px; display: block; }
+        .no-image-text { color: var(--text-muted); padding: 40px 20px; text-align: center; border: 2px dashed #3d4250; border-radius: 8px; }
 
-        /* Модальное окно звонков */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(3px);
-            display: flex; justify-content: center; align-items: flex-end;
-            z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s;
-        }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(3px); display: flex; justify-content: center; align-items: flex-end; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s; }
         .modal-overlay.active { opacity: 1; visibility: visible; }
-        .modal-content {
-            background: var(--card-bg); width: 100%; max-width: 600px;
-            border-radius: 20px 20px 0 0; padding: 20px; box-sizing: border-box;
-            transform: translateY(100%); transition: transform 0.3s;
-            max-height: 80vh; overflow-y: auto;
-        }
+        .modal-content { background: var(--card-bg); width: 100%; max-width: 600px; border-radius: 20px 20px 0 0; padding: 20px; box-sizing: border-box; transform: translateY(100%); transition: transform 0.3s; max-height: 80vh; overflow-y: auto; }
         .modal-overlay.active .modal-content { transform: translateY(0); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .modal-title { font-size: 20px; font-weight: bold; margin: 0; }
@@ -162,47 +115,39 @@
         </div>
 
         <div id="main-screen">
-            <!-- Переключатель (3 вкладки) -->
+            <!-- Плашка уведомления о заменах -->
+            <div class="notification-banner hidden" id="replacementNotice" onclick="switchMode('replacements')">
+                <span>🔔 Обновлены замены!</span>
+                <span>Смотреть &rarr;</span>
+            </div>
+
             <div class="mode-toggle">
                 <div class="mode-btn active" id="btnStudent" onclick="switchMode('student')">Студент</div>
                 <div class="mode-btn" id="btnTeacher" onclick="switchMode('teacher')">Препод</div>
                 <div class="mode-btn" id="btnReplacements" onclick="switchMode('replacements')">Замены</div>
             </div>
 
-            <!-- Блок для студентов -->
             <div id="studentBlock">
                 <div class="selector">
                     <select id="groupSelect"></select>
                 </div>
             </div>
 
-            <!-- Блок для преподавателей -->
             <div id="teacherBlock" class="hidden">
                 <div id="authForm">
                     <div class="selector">
                         <input type="password" id="accessCode" placeholder="Введите код доступа">
                     </div>
                     <button class="btn-login" onclick="loginTeacher()">Войти</button>
-                    <p style="text-align: center; color: var(--text-muted); font-size: 12px; margin-top: 15px;">
-                        Код выдается администратором расписания
-                    </p>
                 </div>
-
                 <div id="teacherProfile" class="hidden">
-                    <p style="text-align: center; color: var(--text-muted); margin-bottom: 10px;">
-                        Вы вошли как: <strong id="teacherName" style="color: white;"></strong>
-                    </p>
-                    <button class="btn-logout" onclick="logoutTeacher()">
-                        Выйти из профиля
-                    </button>
+                    <p style="text-align: center; color: var(--text-muted); margin-bottom: 10px;">Вы вошли как: <strong id="teacherName" style="color: white;"></strong></p>
+                    <button class="btn-logout" onclick="logoutTeacher()">Выйти из профиля</button>
                 </div>
             </div>
 
-            <!-- Блок для замен -->
             <div id="replacementsBlock" class="hidden">
-                <div class="replacement-image-container" id="imageContainer">
-                    <!-- Сюда подставляется картинка -->
-                </div>
+                <div class="replacement-image-container" id="imageContainer"></div>
             </div>
 
             <div class="days-grid" id="daysGrid"></div>
@@ -216,7 +161,6 @@
         <div id="schedule-content"></div>
     </div>
 
-    <!-- Модальное окно звонков -->
     <div class="modal-overlay" id="bellsModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -246,12 +190,12 @@
         </div>
     </div>
 
-    <script src="data.js"></script>
     <script src="auth.js"></script>
 
     <script>
         try { if (window.WebApp) window.WebApp.ready(); } catch (e) {}
 
+        let scheduleData = {};
         let currentMode = 'student';
         let currentTeacherName = localStorage.getItem('teacherName') || "";
         
@@ -260,15 +204,14 @@
         const mainScreen = document.getElementById('main-screen');
         const scheduleContent = document.getElementById('schedule-content');
         const imageContainer = document.getElementById('imageContainer');
-        
         const authForm = document.getElementById('authForm');
         const teacherProfile = document.getElementById('teacherProfile');
         const teacherNameDisplay = document.getElementById('teacherName');
         const accessCodeInput = document.getElementById('accessCode');
-
         const bellsBtn = document.getElementById('bellsBtn');
         const bellsModal = document.getElementById('bellsModal');
         const closeModal = document.getElementById('closeModal');
+        const replacementNotice = document.getElementById('replacementNotice');
 
         const daysOfWeek = [
             { name: 'Понедельник', index: 1, key: 'ПОНЕДЕЛЬНИК' },
@@ -279,15 +222,111 @@
             { name: 'Суббота', index: 6, key: 'СУББОТА' }
         ];
 
+        // --- ПРОВЕРКА ОБНОВЛЕНИЯ ЗАМЕН ---
+        async function checkReplacementsUpdate() {
+            try {
+                // Отправляем запрос HEAD, чтобы узнать дату изменения файла без его скачивания
+                const response = await fetch('replacements.jpg', { method: 'HEAD' });
+                if (response.ok) {
+                    const lastModified = response.headers.get('Last-Modified');
+                    if (lastModified) {
+                        const serverDate = new Date(lastModified).getTime();
+                        const localDate = parseInt(localStorage.getItem('lastViewedReplacements') || '0');
+
+                        // Если файл обновлен позже, чем мы его смотрели - показываем плашку
+                        if (serverDate > localDate) {
+                            replacementNotice.classList.remove('hidden');
+                        }
+                    }
+                }
+            } catch (e) {
+                console.log("Не удалось проверить замены", e);
+            }
+        }
+
+        // Вызываем эту функцию при открытии вкладки "Замены"
+        window.markReplacementsAsViewed = function() {
+            // Запоминаем текущее время
+            localStorage.setItem('lastViewedReplacements', Date.now().toString());
+            replacementNotice.classList.add('hidden');
+        };
+
+        // --- АВТОМАТИЧЕСКАЯ ЗАГРУЗКА EXCEL ---
+        async function loadScheduleFromExcel() {
+            try {
+                const response = await fetch('Расписание для бот.xlsx');
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                parseExcelRows(rows);
+                initGroups();
+            } catch (error) {
+                console.error("Ошибка загрузки Excel:", error);
+            }
+        }
+
+        function parseExcelRows(rows) {
+            scheduleData = {};
+            let currentDay = null;
+            let groupsMap = {};
+            
+            for (let i = 0; i < rows.length; i++) {
+                if (rows[i] && rows[i].includes('1Б')) {
+                    for (let j = 0; j < rows[i].length; j++) {
+                        let cell = rows[i][j];
+                        if (cell && typeof cell === 'string' && cell.trim().length > 0) {
+                            groupsMap[j] = cell.trim();
+                        }
+                    }
+                    break;
+                }
+            }
+
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                if (!row) continue;
+                const firstCell = String(row[0] || '').toUpperCase();
+                const dayMatch = daysOfWeek.find(d => firstCell.includes(d.key.substring(0, 3)));
+                
+                if (dayMatch) {
+                    currentDay = dayMatch.key;
+                    scheduleData[currentDay] = {};
+                    continue;
+                }
+
+                if (currentDay && row[1] && !isNaN(parseInt(row[1]))) {
+                    const lessonTime = parseInt(row[1]);
+                    for (const colIndex in groupsMap) {
+                        const groupName = groupsMap[colIndex];
+                        const colIdx = parseInt(colIndex);
+                        const subject = row[colIdx];
+                        const room = row[colIdx + 1];
+                        const teacher = row[colIdx + 2];
+
+                        if (subject && subject !== '------' && subject !== '-----' && subject !== '') {
+                            if (!scheduleData[currentDay][groupName]) scheduleData[currentDay][groupName] = [];
+                            scheduleData[currentDay][groupName].push({
+                                time: lessonTime, subject: String(subject).trim(),
+                                room: room ? String(room).trim() : '',
+                                teacher: teacher ? String(teacher).trim() : ''
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- ОСТАЛЬНАЯ ЛОГИКА ---
         window.loginTeacher = function() {
             const code = accessCodeInput.value.trim().toUpperCase();
             if (teacherCodes[code]) {
                 currentTeacherName = teacherCodes[code];
                 localStorage.setItem('teacherName', currentTeacherName);
                 checkAuthState();
-            } else {
-                alert("Неверный код. Попробуйте еще раз.");
-            }
+            } else { alert("Неверный код."); }
         };
 
         function checkAuthState() {
@@ -332,17 +371,15 @@
             } else if (mode === 'replacements') {
                 document.getElementById('btnReplacements').classList.add('active');
                 document.getElementById('replacementsBlock').classList.remove('hidden');
-                
-                // Скрываем сетку дней и звонки
                 daysGrid.classList.add('hidden');
                 bellsBtn.classList.add('hidden');
                 
-                // Загружаем картинку ИЗ КОРНЯ (без папки images)
+                // При переходе на вкладку замен скрываем уведомление
+                markReplacementsAsViewed();
+
                 imageContainer.innerHTML = `
                     <img src="replacements.jpg" onerror="this.style.display='none'; document.getElementById('noImgText').style.display='block';" alt="Замены">
-                    <div id="noImgText" class="no-image-text" style="display:none;">
-                        На сегодня замен нет (или фото еще не загружено).
-                    </div>
+                    <div id="noImgText" class="no-image-text" style="display:none;">На сегодня замен нет.</div>
                 `;
             }
         };
@@ -350,9 +387,7 @@
         function initGroups() {
             const groups = new Set();
             for (const day in scheduleData) {
-                for (const group in scheduleData[day]) {
-                    groups.add(group);
-                }
+                for (const group in scheduleData[day]) { groups.add(group); }
             }
             
             const savedGroup = localStorage.getItem('savedGroup') || "";
@@ -438,7 +473,6 @@
 
             if (selected === "Администратор") {
                 html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Режим просмотра всех пар</p>`;
-                
                 for (const group in dayData) {
                     const groupLessons = dayData[group];
                     if (groupLessons.length > 0) {
@@ -457,9 +491,7 @@
                         });
                     }
                 }
-                if (html.indexOf('Группа:') === -1) {
-                     html += '<p style="text-align:center; color:gray; margin-top:30px;">В этот день занятий нет.</p>';
-                }
+                if (html.indexOf('Группа:') === -1) { html += '<p style="text-align:center; color:gray; margin-top:30px;">В этот день занятий нет.</p>'; }
             } else {
                 if (currentMode === 'student') {
                     lessonsToShow = dayData[selected] || [];
@@ -504,16 +536,13 @@
 
         bellsBtn.addEventListener('click', () => bellsModal.classList.add('active'));
         closeModal.addEventListener('click', () => bellsModal.classList.remove('active'));
-        bellsModal.addEventListener('click', (e) => {
-            if (e.target === bellsModal) bellsModal.classList.remove('active');
-        });
+        bellsModal.addEventListener('click', (e) => { if (e.target === bellsModal) bellsModal.classList.remove('active'); });
 
-        initGroups();
+        // Запуск
         renderDaysGrid();
-        
-        if (currentTeacherName) {
-            checkAuthState();
-        }
+        loadScheduleFromExcel();
+        checkReplacementsUpdate(); // Проверяем, не обновились ли замены
+        if (currentTeacherName) checkAuthState();
     </script>
 </body>
 </html>
