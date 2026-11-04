@@ -59,11 +59,16 @@
         /* Скрытие элементов */
         .hidden { display: none !important; }
 
-        /* Кнопка входа для препода */
+        /* Кнопки */
         .btn-login {
             width: 100%; padding: 12px; border-radius: 8px; font-size: 16px;
             background: var(--accent); color: white; border: none; font-weight: bold;
-            cursor: pointer; margin-top: 10px;
+            cursor: pointer; margin-top: 5px;
+        }
+        .btn-logout {
+            width: 100%; padding: 10px; border-radius: 8px; font-size: 14px;
+            background: transparent; color: var(--text-muted); border: 1px solid var(--text-muted);
+            cursor: pointer; margin-bottom: 15px;
         }
 
         /* Сетка дней */
@@ -162,7 +167,7 @@
                 <!-- Если не авторизован - показываем ввод кода -->
                 <div id="authForm">
                     <div class="selector">
-                        <input type="password" id="accessCode" placeholder="Введите код преподавателя">
+                        <input type="password" id="accessCode" placeholder="Введите код доступа">
                     </div>
                     <button class="btn-login" onclick="loginTeacher()">Войти</button>
                     <p style="text-align: center; color: var(--text-muted); font-size: 12px; margin-top: 15px;">
@@ -170,9 +175,14 @@
                     </p>
                 </div>
 
-                <!-- Если авторизован - показываем расписание препода -->
+                <!-- Если авторизован - показываем профиль и кнопку выхода -->
                 <div id="teacherProfile" class="hidden">
-                    <p style="text-align: center; color: var(--text-muted); margin-bottom: 15px;">Вы вошли как: <strong id="teacherName" style="color: white;"></strong></p>
+                    <p style="text-align: center; color: var(--text-muted); margin-bottom: 10px;">
+                        Вы вошли как: <strong id="teacherName" style="color: white;"></strong>
+                    </p>
+                    <button class="btn-logout" onclick="logoutTeacher()">
+                        Выйти из профиля
+                    </button>
                 </div>
             </div>
 
@@ -263,7 +273,7 @@
             }
         };
 
-        // Проверяем, вошел ли учитель
+        // Проверяем, вошел ли учитель/админ
         function checkAuthState() {
             if (currentTeacherName) {
                 authForm.classList.add('hidden');
@@ -297,7 +307,7 @@
             } else {
                 document.getElementById('studentBlock').classList.add('hidden');
                 document.getElementById('teacherBlock').classList.remove('hidden');
-                checkAuthState(); // Проверяем, авторизован ли
+                checkAuthState();
             }
         };
 
@@ -370,7 +380,6 @@
         }
 
         // --- ПОКАЗ РАСПИСАНИЯ ---
-                // --- ПОКАЗ РАСПИСАНИЯ ---
         function showScheduleForDay(dayKey, displayTitle) {
             let selected = "";
             
@@ -378,7 +387,7 @@
                 selected = groupSelect.value;
                 if (!selected) { alert("Выберите группу!"); return; }
             } else {
-                if (!currentTeacherName) { alert("Сначала введите код преподавателя."); return; }
+                if (!currentTeacherName) { alert("Сначала введите код доступа."); return; }
                 selected = currentTeacherName;
             }
 
@@ -399,7 +408,6 @@
             if (selected === "Администратор") {
                 html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Режим просмотра всех пар</p>`;
                 
-                // Проходим по всем группам
                 for (const group in dayData) {
                     const groupLessons = dayData[group];
                     
@@ -462,11 +470,24 @@
             
             scheduleContent.innerHTML = html;
         }
+
+        window.goBack = function() {
+            scheduleContent.style.display = 'none';
+            mainScreen.style.display = 'block';
+        }
+
+        // --- МОДАЛКА ЗВОНКОВ ---
+        bellsBtn.addEventListener('click', () => bellsModal.classList.add('active'));
+        closeModal.addEventListener('click', () => bellsModal.classList.remove('active'));
+        bellsModal.addEventListener('click', (e) => {
+            if (e.target === bellsModal) bellsModal.classList.remove('active');
+        });
+
         // --- ЗАПУСК ---
         initGroups();
         renderDaysGrid();
         
-        // Если ранее был авторизован - сразу показываем профиль при переключении
+        // Если ранее был авторизован
         if (currentTeacherName) {
             checkAuthState();
         }
