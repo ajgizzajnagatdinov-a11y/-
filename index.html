@@ -2,13 +2,14 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Расписание занятий</title>
     <script src="https://st.max.ru/js/max-web-app.js"></script>
     <style>
         :root {
             --bg-color: #1a1c23;
             --card-bg: #262933;
+            --card-hover: #2d3341;
             --text-main: #ffffff;
             --text-muted: #9ba1ad;
             --accent: #2196f3;
@@ -23,6 +24,7 @@
             padding: 20px 15px;
             display: flex;
             justify-content: center;
+            overflow-x: hidden;
         }
 
         .app-container {
@@ -46,6 +48,25 @@
             margin: 0;
         }
 
+        /* Выбор группы */
+        .group-selector {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .group-selector select {
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 16px;
+            background: var(--card-bg);
+            color: white;
+            border: 1px solid #3d4250;
+            width: 100%;
+            outline: none;
+            appearance: none;
+            text-align: center;
+            font-weight: bold;
+        }
+
         /* Сетка дней */
         .days-grid {
             display: grid;
@@ -61,27 +82,46 @@
             padding: 15px;
             cursor: pointer;
             transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
         }
 
-        .day-card:hover, .day-card.active {
+        .day-card:hover, .day-card:active {
+            background-color: var(--card-hover);
             border-color: var(--accent);
-            background-color: #2d3341;
         }
 
         .day-card-title {
             font-size: 18px;
             font-weight: bold;
             margin-bottom: 4px;
+            position: relative;
+            z-index: 1;
         }
 
         .day-card-date {
             font-size: 14px;
             color: var(--text-muted);
+            position: relative;
+            z-index: 1;
         }
         
-        /* Если сегодня - выделяем рамку */
+        /* Если сегодня */
+        .day-card.is-today::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(33, 150, 243, 0.2), transparent);
+            z-index: 0;
+        }
         .day-card.is-today {
-            border: 2px solid var(--accent);
+            border: 1px solid var(--accent);
+        }
+        .day-card.is-today .day-card-title {
+            color: var(--accent);
         }
 
         /* Кнопка звонков */
@@ -92,7 +132,6 @@
             justify-content: center;
             background: linear-gradient(135deg, #1976d2, #2196f3);
             color: white;
-            text-decoration: none;
             padding: 15px;
             border-radius: var(--border-radius);
             font-weight: bold;
@@ -102,8 +141,12 @@
             width: 100%;
             box-sizing: border-box;
             cursor: pointer;
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+            transition: transform 0.1s;
         }
-        
+        .btn-bells:active {
+            transform: scale(0.98);
+        }
         .btn-bells span {
             font-size: 12px;
             font-weight: normal;
@@ -113,32 +156,51 @@
 
         /* Блок с уроками */
         #schedule-content {
-            margin-top: 25px;
-            display: none; /* Скрыто по умолчанию */
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .schedule-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #3d4250;
+        }
+
+        .back-icon {
+            font-size: 24px;
+            cursor: pointer;
+            margin-right: 10px;
+            color: var(--accent);
         }
 
         .schedule-day-title {
             font-size: 20px;
             font-weight: bold;
-            margin-bottom: 15px;
-            color: var(--accent);
-            border-bottom: 1px solid #3d4250;
-            padding-bottom: 10px;
+            margin: 0;
         }
 
         .lesson-item {
             display: flex;
-            margin-bottom: 12px;
-            background: #2d3341;
-            padding: 12px;
+            margin-bottom: 10px;
+            background: var(--card-bg);
+            padding: 14px;
             border-radius: 8px;
+            border-left: 4px solid var(--accent);
         }
 
         .lesson-time {
             font-weight: bold;
             color: var(--accent);
-            width: 30px;
+            width: 25px;
             flex-shrink: 0;
+            font-size: 16px;
         }
 
         .lesson-info {
@@ -148,22 +210,118 @@
         .lesson-subject {
             font-weight: 500;
             margin-bottom: 4px;
+            font-size: 15px;
         }
 
         .lesson-room {
             font-size: 13px;
             color: var(--text-muted);
         }
-        
-        .back-btn {
-            background: none;
-            border: 1px solid var(--text-muted);
-            color: var(--text-main);
-            padding: 10px;
-            border-radius: 8px;
+
+        /* --- МОДАЛЬНОЕ ОКНО (ЗВОНКИ) --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
-            margin-top: 20px;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(3px);
+            display: flex;
+            justify-content: center;
+            align-items: flex-end; /* Выезжает снизу */
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 600px;
+            border-radius: 20px 20px 0 0;
+            padding: 20px;
+            box-sizing: border-box;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 28px;
             cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        /* Таблица звонков */
+        .bells-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .bells-table th {
+            text-align: left;
+            padding: 10px 5px;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: normal;
+            border-bottom: 1px solid #3d4250;
+        }
+
+        .bells-table td {
+            padding: 12px 5px;
+            border-bottom: 1px solid #3d4250;
+        }
+
+        .bells-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .bells-table .num {
+            font-weight: bold;
+            color: var(--accent);
+            width: 30px;
+        }
+        
+        .bells-table .time {
+            font-family: monospace;
+            font-size: 15px;
+        }
+
+        .bells-section-title {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin: 15px 0 5px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
     </style>
@@ -178,15 +336,14 @@
 
         <!-- Экран выбора дня -->
         <div id="main-screen">
-            <!-- Выбор группы (сохраняется в памяти) -->
-            <div style="margin-bottom: 15px; text-align: center;">
-                <select id="groupSelect" style="padding: 10px; border-radius: 8px; font-size: 16px; background: var(--card-bg); color: white; border: 1px solid #3d4250; width: 100%;">
+            <div class="group-selector">
+                <select id="groupSelect">
                     <option value="">Загрузка...</option>
                 </select>
             </div>
 
             <div class="days-grid" id="daysGrid">
-                <!-- Карточки дней будут добавлены через JS -->
+                <!-- Карточки дней -->
             </div>
 
             <button class="btn-bells" id="bellsBtn">
@@ -198,7 +355,38 @@
         <!-- Экран с уроками -->
         <div id="schedule-content">
             <!-- Сюда выводятся уроки -->
-            <button class="back-btn" id="backBtn">← Назад к выбору дня</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно звонков -->
+    <div class="modal-overlay" id="bellsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Расписание звонков</h2>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            
+            <div class="bells-section-title">Понедельник — Пятница</div>
+            <table class="bells-table">
+                <tr><td class="num">1.</td><td class="time">09:00 — 09:45</td></tr>
+                <tr><td class="num">2.</td><td class="time">09:50 — 10:35</td></tr>
+                <tr><td class="num">3.</td><td class="time">10:45 — 11:35</td></tr>
+                <tr><td class="num">4.</td><td class="time">11:35 — 12:20</td></tr>
+                <tr><td class="num">5.</td><td class="time">13:00 — 13:45</td></tr>
+                <tr><td class="num">6.</td><td class="time">13:50 — 14:35</td></tr>
+                <tr><td class="num">7.</td><td class="time">14:45 — 15:30</td></tr>
+                <tr><td class="num">8.</td><td class="time">15:35 — 16:20</td></tr>
+            </table>
+
+            <div class="bells-section-title" style="margin-top: 20px;">Суббота</div>
+            <table class="bells-table">
+                <tr><td class="num">1.</td><td class="time">08:00 — 08:40</td></tr>
+                <tr><td class="num">2.</td><td class="time">08:45 — 09:25</td></tr>
+                <tr><td class="num">3.</td><td class="time">09:30 — 10:10</td></tr>
+                <tr><td class="num">4.</td><td class="time">10:15 — 10:55</td></tr>
+                <tr><td class="num">5.</td><td class="time">11:00 — 11:40</td></tr>
+                <tr><td class="num">6.</td><td class="time">11:45 — 12:25</td></tr>
+            </table>
         </div>
     </div>
 
@@ -206,30 +394,29 @@
     <script src="data.js"></script>
 
     <script>
-        // Инициализация MAX Bridge
-        try {
-            if (window.WebApp) window.WebApp.ready();
-        } catch (e) { console.log("Вне MAX"); }
+        try { if (window.WebApp) window.WebApp.ready(); } catch (e) {}
 
         const groupSelect = document.getElementById('groupSelect');
         const daysGrid = document.getElementById('daysGrid');
         const mainScreen = document.getElementById('main-screen');
         const scheduleContent = document.getElementById('schedule-content');
-        const backBtn = document.getElementById('backBtn');
+        
+        // Модальное окно
+        const bellsBtn = document.getElementById('bellsBtn');
+        const bellsModal = document.getElementById('bellsModal');
+        const closeModal = document.getElementById('closeModal');
 
         const daysOfWeek = [
-            { name: 'Понедельник', index: 1, short: 'ПН' },
-            { name: 'Вторник', index: 2, short: 'ВТ' },
-            { name: 'Среда', index: 3, short: 'СР' },
-            { name: 'Четверг', index: 4, short: 'ЧТ' },
-            { name: 'Пятница', index: 5, short: 'ПТ' },
-            { name: 'Суббота', index: 6, short: 'СБ' }
+            { name: 'Понедельник', index: 1, key: 'ПОНЕДЕЛЬНИК' },
+            { name: 'Вторник', index: 2, key: 'ВТОРНИК' },
+            { name: 'Среда', index: 3, key: 'СРЕДА' },
+            { name: 'Четверг', index: 4, key: 'ЧЕТВЕРГ' },
+            { name: 'Пятница', index: 5, key: 'ПЯТНИЦА' },
+            { name: 'Суббота', index: 6, key: 'СУББОТА' }
         ];
 
-        // Функция для получения дат текущей недели
         function getCurrentWeekDates() {
             const today = new Date();
-            // В России неделя начинается с понедельника
             const currentDay = today.getDay() === 0 ? 7 : today.getDay(); 
             const monday = new Date(today);
             monday.setDate(today.getDate() - currentDay + 1);
@@ -247,7 +434,6 @@
             return dates;
         }
 
-        // Заполняем список группами
         function initGroups() {
             const groups = new Set();
             for (const day in scheduleData) {
@@ -257,8 +443,8 @@
             }
             
             const savedGroup = localStorage.getItem('savedGroup') || "";
-            
             groupSelect.innerHTML = '<option value="">Выберите группу</option>';
+            
             Array.from(groups).sort().forEach(group => {
                 const option = document.createElement('option');
                 option.value = group;
@@ -267,17 +453,14 @@
                 groupSelect.appendChild(option);
             });
             
-            // Сохраняем при смене
             groupSelect.addEventListener('change', (e) => {
                 localStorage.setItem('savedGroup', e.target.value);
-                renderDaysGrid();
             });
         }
 
-        // Отрисовываем карточки дней
         function renderDaysGrid() {
             const weekDates = getCurrentWeekDates();
-            const todayIndex = new Date().getDay() === 0 ? 7 : new Date().getDay(); // 1-7
+            const todayIndex = new Date().getDay() === 0 ? 7 : new Date().getDay();
             
             daysGrid.innerHTML = '';
             
@@ -292,32 +475,29 @@
                     <div class="day-card-date">${date.day}.${date.month}.${date.year}</div>
                 `;
                 
-                card.onclick = () => showScheduleForDay(day.name.toUpperCase(), `${day.name} (${date.day}.${date.month})`);
+                card.onclick = () => showScheduleForDay(day.key, `${day.name} (${date.day}.${date.month})`);
                 daysGrid.appendChild(card);
             });
         }
 
-        // Показ расписания на конкретный день
-        function showScheduleForDay(dayName, displayTitle) {
+        function showScheduleForDay(dayKey, displayTitle) {
             const group = groupSelect.value;
             if (!group) {
                 alert("Пожалуйста, сначала выберите группу!");
                 return;
             }
 
-            // Находим данные
-            let lessons = null;
-            for (const d in scheduleData) {
-                if (d.includes(dayName) || dayName.includes(d)) {
-                    lessons = scheduleData[d][group];
-                    break;
-                }
-            }
+            const lessons = scheduleData[dayKey] ? scheduleData[dayKey][group] : null;
 
             mainScreen.style.display = 'none';
             scheduleContent.style.display = 'block';
             
-            let html = `<div class="schedule-day-title">${displayTitle}</div>`;
+            let html = `
+                <div class="schedule-header">
+                    <div class="back-icon" onclick="goBack()">←</div>
+                    <h2 class="schedule-day-title">${displayTitle}</h2>
+                </div>
+            `;
             
             if (lessons && lessons.length > 0) {
                 lessons.forEach(lesson => {
@@ -332,11 +512,10 @@
                     `;
                 });
             } else {
-                html += '<p style="text-align:center; color:gray;">В этот день занятий нет.</p>';
+                html += '<p style="text-align:center; color:gray; margin-top:30px;">В этот день занятий нет.</p>';
             }
             
-            // Добавляем кнопку "Назад" в конец блока
-            scheduleContent.innerHTML = html + '<button class="back-btn" onclick="goBack()">← Назад к выбору дня</button>';
+            scheduleContent.innerHTML = html;
         }
 
         window.goBack = function() {
@@ -344,10 +523,21 @@
             mainScreen.style.display = 'block';
         }
 
-        // Заглушка для звонков
-        document.getElementById('bellsBtn').onclick = () => {
-            alert("Звонки:\n1. 09:00 - 09:45\n2. 09:50 - 10:35\n3. 10:45 - 11:35\n4. 11:35 - 12:20\n5. 13:00 - 13:45\n6. 13:50 - 14:35\n7. 14:45 - 15:30\n8. 15:35 - 16:20");
-        };
+        // Логика модального окна
+        bellsBtn.addEventListener('click', () => {
+            bellsModal.classList.add('active');
+        });
+
+        closeModal.addEventListener('click', () => {
+            bellsModal.classList.remove('active');
+        });
+
+        // Закрытие по клику на фон
+        bellsModal.addEventListener('click', (e) => {
+            if (e.target === bellsModal) {
+                bellsModal.classList.remove('active');
+            }
+        });
 
         // Запуск
         initGroups();
