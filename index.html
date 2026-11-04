@@ -162,7 +162,7 @@
         </div>
 
         <div id="main-screen">
-            <!-- Переключатель (теперь их 3) -->
+            <!-- Переключатель (3 вкладки) -->
             <div class="mode-toggle">
                 <div class="mode-btn active" id="btnStudent" onclick="switchMode('student')">Студент</div>
                 <div class="mode-btn" id="btnTeacher" onclick="switchMode('teacher')">Препод</div>
@@ -201,7 +201,7 @@
             <!-- Блок для замен -->
             <div id="replacementsBlock" class="hidden">
                 <div class="replacement-image-container" id="imageContainer">
-                    <!-- Сюда будет подставляться картинка -->
+                    <!-- Сюда подставляется картинка -->
                 </div>
             </div>
 
@@ -312,12 +312,10 @@
             if (currentMode === mode) return;
             currentMode = mode;
             
-            // Снимаем активный класс со всех кнопок
             document.getElementById('btnStudent').classList.remove('active');
             document.getElementById('btnTeacher').classList.remove('active');
             document.getElementById('btnReplacements').classList.remove('active');
             
-            // Скрываем все блоки
             document.getElementById('studentBlock').classList.add('hidden');
             document.getElementById('teacherBlock').classList.add('hidden');
             document.getElementById('replacementsBlock').classList.add('hidden');
@@ -335,14 +333,13 @@
                 document.getElementById('btnReplacements').classList.add('active');
                 document.getElementById('replacementsBlock').classList.remove('hidden');
                 
-                // Скрываем сетку дней и звонки, так как мы смотрим картинку
+                // Скрываем сетку дней и звонки
                 daysGrid.classList.add('hidden');
                 bellsBtn.classList.add('hidden');
                 
-                // Проверяем наличие картинки
-                // ВАЖНО: здесь мы ищем файл images/replacements.jpg в вашем репозитории
+                // Загружаем картинку ИЗ КОРНЯ (без папки images)
                 imageContainer.innerHTML = `
-                    <img src="images/replacements.jpg" onerror="this.style.display='none'; document.getElementById('noImgText').style.display='block';" alt="Замены">
+                    <img src="replacements.jpg" onerror="this.style.display='none'; document.getElementById('noImgText').style.display='block';" alt="Замены">
                     <div id="noImgText" class="no-image-text" style="display:none;">
                         На сегодня замен нет (или фото еще не загружено).
                     </div>
