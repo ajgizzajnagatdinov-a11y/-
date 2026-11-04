@@ -42,53 +42,37 @@
             margin-bottom: 15px;
         }
         .mode-btn {
-            flex: 1;
-            padding: 10px;
-            text-align: center;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            color: var(--text-muted);
-            transition: all 0.2s;
+            flex: 1; padding: 10px; text-align: center; border-radius: 6px;
+            cursor: pointer; font-weight: bold; color: var(--text-muted); transition: all 0.2s;
         }
-        .mode-btn.active {
-            background: var(--accent);
-            color: white;
-        }
+        .mode-btn.active { background: var(--accent); color: white; }
 
-        /* Селект */
-        .selector {
-            margin-bottom: 20px;
+        /* Селект и Инпут */
+        .selector { margin-bottom: 20px; }
+        .selector select, .selector input {
+            width: 100%; padding: 12px; border-radius: 8px; font-size: 16px;
+            background: var(--card-bg); color: white; border: 1px solid #3d4250;
+            outline: none; appearance: none; text-align: center; font-weight: bold;
+            box-sizing: border-box; margin-bottom: 10px;
         }
-        .selector select {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 16px;
-            background: var(--card-bg);
-            color: white;
-            border: 1px solid #3d4250;
-            outline: none;
-            appearance: none;
-            text-align: center;
-            font-weight: bold;
-            box-sizing: border-box;
+        
+        /* Скрытие элементов */
+        .hidden { display: none !important; }
+
+        /* Кнопка входа для препода */
+        .btn-login {
+            width: 100%; padding: 12px; border-radius: 8px; font-size: 16px;
+            background: var(--accent); color: white; border: none; font-weight: bold;
+            cursor: pointer; margin-top: 10px;
         }
 
         /* Сетка дней */
         .days-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 20px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;
         }
         .day-card {
-            background-color: var(--card-bg);
-            border: 1px solid #3d4250;
-            border-radius: var(--border-radius);
-            padding: 15px;
-            cursor: pointer;
-            transition: all 0.2s;
+            background-color: var(--card-bg); border: 1px solid #3d4250;
+            border-radius: var(--border-radius); padding: 15px; cursor: pointer; transition: all 0.2s;
         }
         .day-card:active { background-color: var(--card-hover); }
         .day-card-title { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
@@ -126,7 +110,7 @@
         .lesson-room { font-size: 13px; color: var(--text-muted); }
         .lesson-teacher { font-size: 13px; color: #ffb74d; margin-top: 4px; }
 
-        /* Модальное окно */
+        /* Модальное окно звонков */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(3px);
@@ -146,7 +130,6 @@
         .modal-close { background: none; border: none; color: var(--text-muted); font-size: 28px; cursor: pointer; }
         
         .bells-table { width: 100%; border-collapse: collapse; }
-        .bells-table th { text-align: left; padding: 10px 5px; color: var(--text-muted); font-size: 13px; border-bottom: 1px solid #3d4250; }
         .bells-table td { padding: 12px 5px; border-bottom: 1px solid #3d4250; }
         .bells-table .num { font-weight: bold; color: var(--accent); width: 30px; }
         .bells-table .time { font-family: monospace; font-size: 15px; }
@@ -167,9 +150,30 @@
                 <div class="mode-btn" id="btnTeacher" onclick="switchMode('teacher')">Преподаватель</div>
             </div>
 
-            <!-- Селект -->
-            <div class="selector">
-                <select id="selectionSelect"></select>
+            <!-- Блок для студентов -->
+            <div id="studentBlock">
+                <div class="selector">
+                    <select id="groupSelect"></select>
+                </div>
+            </div>
+
+            <!-- Блок для преподавателей -->
+            <div id="teacherBlock" class="hidden">
+                <!-- Если не авторизован - показываем ввод кода -->
+                <div id="authForm">
+                    <div class="selector">
+                        <input type="password" id="accessCode" placeholder="Введите код преподавателя">
+                    </div>
+                    <button class="btn-login" onclick="loginTeacher()">Войти</button>
+                    <p style="text-align: center; color: var(--text-muted); font-size: 12px; margin-top: 15px;">
+                        Код выдается администратором расписания
+                    </p>
+                </div>
+
+                <!-- Если авторизован - показываем расписание препода -->
+                <div id="teacherProfile" class="hidden">
+                    <p style="text-align: center; color: var(--text-muted); margin-bottom: 15px;">Вы вошли как: <strong id="teacherName" style="color: white;"></strong></p>
+                </div>
             </div>
 
             <div class="days-grid" id="daysGrid"></div>
@@ -190,7 +194,6 @@
                 <h2 class="modal-title">Расписание звонков</h2>
                 <button class="modal-close" id="closeModal">&times;</button>
             </div>
-            
             <div class="bells-section-title">Понедельник — Пятница</div>
             <table class="bells-table">
                 <tr><td class="num">1.</td><td class="time">09:00 — 09:45</td></tr>
@@ -202,7 +205,6 @@
                 <tr><td class="num">7.</td><td class="time">14:45 — 15:30</td></tr>
                 <tr><td class="num">8.</td><td class="time">15:35 — 16:20</td></tr>
             </table>
-
             <div class="bells-section-title" style="margin-top: 20px;">Суббота</div>
             <table class="bells-table">
                 <tr><td class="num">1.</td><td class="time">08:00 — 08:40</td></tr>
@@ -215,20 +217,27 @@
         </div>
     </div>
 
+    <!-- Подключаем данные и коды -->
     <script src="data.js"></script>
+    <script src="auth.js"></script>
 
     <script>
         try { if (window.WebApp) window.WebApp.ready(); } catch (e) {}
 
         let currentMode = 'student';
-        let groupsList = [];
-        let teachersList = [];
-
-        const selectionSelect = document.getElementById('selectionSelect');
+        let currentTeacherName = localStorage.getItem('teacherName') || "";
+        
+        const groupSelect = document.getElementById('groupSelect');
         const daysGrid = document.getElementById('daysGrid');
         const mainScreen = document.getElementById('main-screen');
         const scheduleContent = document.getElementById('schedule-content');
         
+        // Элементы авторизации
+        const authForm = document.getElementById('authForm');
+        const teacherProfile = document.getElementById('teacherProfile');
+        const teacherNameDisplay = document.getElementById('teacherName');
+        const accessCodeInput = document.getElementById('accessCode');
+
         const bellsBtn = document.getElementById('bellsBtn');
         const bellsModal = document.getElementById('bellsModal');
         const closeModal = document.getElementById('closeModal');
@@ -242,27 +251,39 @@
             { name: 'Суббота', index: 6, key: 'СУББОТА' }
         ];
 
-        function extractLists() {
-            const groups = new Set();
-            const teachers = new Set();
-
-            for (const day in scheduleData) {
-                for (const group in scheduleData[day]) {
-                    groups.add(group);
-                    scheduleData[day][group].forEach(lesson => {
-                        if (lesson.teacher && lesson.teacher !== "------" && lesson.teacher !== "-") {
-                            lesson.teacher.split('/').forEach(t => {
-                                const name = t.trim();
-                                if (name.length > 2) teachers.add(name);
-                            });
-                        }
-                    });
-                }
+        // --- ЛОГИКА АВТОРИЗАЦИИ ---
+        window.loginTeacher = function() {
+            const code = accessCodeInput.value.trim().toUpperCase();
+            if (teacherCodes[code]) {
+                currentTeacherName = teacherCodes[code];
+                localStorage.setItem('teacherName', currentTeacherName);
+                checkAuthState();
+            } else {
+                alert("Неверный код. Попробуйте еще раз.");
             }
-            groupsList = Array.from(groups).sort();
-            teachersList = Array.from(teachers).sort();
+        };
+
+        // Проверяем, вошел ли учитель
+        function checkAuthState() {
+            if (currentTeacherName) {
+                authForm.classList.add('hidden');
+                teacherProfile.classList.remove('hidden');
+                teacherNameDisplay.textContent = currentTeacherName;
+            } else {
+                authForm.classList.remove('hidden');
+                teacherProfile.classList.add('hidden');
+            }
         }
 
+        // Выход из профиля
+        window.logoutTeacher = function() {
+            currentTeacherName = "";
+            localStorage.removeItem('teacherName');
+            accessCodeInput.value = "";
+            checkAuthState();
+        };
+
+        // --- ПЕРЕКЛЮЧЕНИЕ РЕЖИМОВ ---
         window.switchMode = function(mode) {
             if (currentMode === mode) return;
             currentMode = mode;
@@ -270,31 +291,42 @@
             document.getElementById('btnStudent').classList.toggle('active', mode === 'student');
             document.getElementById('btnTeacher').classList.toggle('active', mode === 'teacher');
             
-            updateSelectOptions();
+            if (mode === 'student') {
+                document.getElementById('studentBlock').classList.remove('hidden');
+                document.getElementById('teacherBlock').classList.add('hidden');
+            } else {
+                document.getElementById('studentBlock').classList.add('hidden');
+                document.getElementById('teacherBlock').classList.remove('hidden');
+                checkAuthState(); // Проверяем, авторизован ли
+            }
         };
 
-        function updateSelectOptions() {
-            const saved = localStorage.getItem(`saved_${currentMode}`) || "";
-            selectionSelect.innerHTML = '';
-
-            const list = currentMode === 'student' ? groupsList : teachersList;
-            const label = currentMode === 'student' ? 'группу' : 'преподавателя';
+        // --- ИНИЦИАЛИЗАЦИЯ СПИСКА ГРУПП ---
+        function initGroups() {
+            const groups = new Set();
+            for (const day in scheduleData) {
+                for (const group in scheduleData[day]) {
+                    groups.add(group);
+                }
+            }
             
-            selectionSelect.innerHTML = `<option value="">Выберите ${label}</option>`;
+            const savedGroup = localStorage.getItem('savedGroup') || "";
+            groupSelect.innerHTML = '<option value="">Выберите группу</option>';
             
-            list.forEach(item => {
+            Array.from(groups).sort().forEach(group => {
                 const option = document.createElement('option');
-                option.value = item;
-                option.textContent = item;
-                if (item === saved) option.selected = true;
-                selectionSelect.appendChild(option);
+                option.value = group;
+                option.textContent = group;
+                if (group === savedGroup) option.selected = true;
+                groupSelect.appendChild(option);
+            });
+            
+            groupSelect.addEventListener('change', (e) => {
+                localStorage.setItem('savedGroup', e.target.value);
             });
         }
 
-        selectionSelect.addEventListener('change', (e) => {
-            localStorage.setItem(`saved_${currentMode}`, e.target.value);
-        });
-
+        // --- ДАТЫ ---
         function getCurrentWeekDates() {
             const today = new Date();
             const currentDay = today.getDay() === 0 ? 7 : today.getDay(); 
@@ -314,6 +346,7 @@
             return dates;
         }
 
+        // --- ОТРИСОВКА ДНЕЙ ---
         function renderDaysGrid() {
             const weekDates = getCurrentWeekDates();
             const todayIndex = new Date().getDay() === 0 ? 7 : new Date().getDay();
@@ -336,11 +369,16 @@
             });
         }
 
+        // --- ПОКАЗ РАСПИСАНИЯ ---
         function showScheduleForDay(dayKey, displayTitle) {
-            const selected = selectionSelect.value;
-            if (!selected) {
-                alert(currentMode === 'student' ? "Выберите группу!" : "Выберите преподавателя!");
-                return;
+            let selected = "";
+            
+            if (currentMode === 'student') {
+                selected = groupSelect.value;
+                if (!selected) { alert("Выберите группу!"); return; }
+            } else {
+                if (!currentTeacherName) { alert("Сначала введите код преподавателя."); return; }
+                selected = currentTeacherName;
             }
 
             mainScreen.style.display = 'none';
@@ -359,14 +397,12 @@
             if (currentMode === 'student') {
                 lessonsToShow = dayData[selected] || [];
             } else {
+                // Ищем пары препода
                 for (const group in dayData) {
                     const groupLessons = dayData[group];
                     groupLessons.forEach(lesson => {
                         if (lesson.teacher && lesson.teacher.includes(selected)) {
-                            lessonsToShow.push({
-                                ...lesson,
-                                group: group
-                            });
+                            lessonsToShow.push({ ...lesson, group: group });
                         }
                     });
                 }
@@ -399,15 +435,21 @@
             mainScreen.style.display = 'block';
         }
 
+        // --- МОДАЛКА ЗВОНКОВ ---
         bellsBtn.addEventListener('click', () => bellsModal.classList.add('active'));
         closeModal.addEventListener('click', () => bellsModal.classList.remove('active'));
         bellsModal.addEventListener('click', (e) => {
             if (e.target === bellsModal) bellsModal.classList.remove('active');
         });
 
-        extractLists();
-        updateSelectOptions();
+        // --- ЗАПУСК ---
+        initGroups();
         renderDaysGrid();
+        
+        // Если ранее был авторизован - сразу показываем профиль при переключении
+        if (currentTeacherName) {
+            checkAuthState();
+        }
     </script>
 </body>
 </html>
