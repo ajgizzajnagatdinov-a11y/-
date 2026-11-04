@@ -35,7 +35,7 @@
     </div>
 <script src="data.js"></script>
     
-    <script>
+        <script>
         // Инициализация MAX Bridge
         try {
             if (window.WebApp) {
@@ -43,14 +43,11 @@
             }
         } catch (e) { console.log("Вне MAX"); }
 
-        // Данные из вашего Excel файла (выборочно)
-      
-
         const groupSelect = document.getElementById('groupSelect');
         const loadBtn = document.getElementById('loadBtn');
         const scheduleList = document.getElementById('scheduleList');
 
-        // Заполняем список группами, которые есть в данных
+        // 1. Заполняем список группами
         function initGroups() {
             const groups = new Set();
             for (const day in scheduleData) {
@@ -68,11 +65,10 @@
             });
         }
 
-        // Отрисовка
-        loadBtn.addEventListener('click', () => {
-            const group = groupSelect.value;
+        // 2. Функция отрисовки расписания
+        function renderSchedule(group) {
             if (!group) {
-                alert('Пожалуйста, выберите группу');
+                scheduleList.innerHTML = '<p class="empty">Выберите группу из списка выше.</p>';
                 return;
             }
 
@@ -106,9 +102,38 @@
             if (!hasLessons) {
                 scheduleList.innerHTML = '<p class="empty">Для этой группы нет занятий.</p>';
             }
+        }
+
+        // 3. Обработчик кнопки
+        loadBtn.addEventListener('click', () => {
+            const group = groupSelect.value;
+            if (!group) {
+                alert('Пожалуйста, выберите группу');
+                return;
+            }
+            
+            // Сохраняем выбор в память браузера
+            localStorage.setItem('savedGroup', group);
+            
+            // Показываем расписание
+            renderSchedule(group);
         });
 
+        // 4. Проверяем, сохранена ли группа при загрузке
+        function checkSavedGroup() {
+            const savedGroup = localStorage.getItem('savedGroup');
+            
+            if (savedGroup) {
+                // Если группа была сохранена, ставим её в выпадающий список
+                groupSelect.value = savedGroup;
+                // И сразу показываем расписание
+                renderSchedule(savedGroup);
+            }
+        }
+
+        // Запускаем всё при старте
         initGroups();
+        checkSavedGroup(); // Проверяем сохраненную группу
     </script>
 </body>
 </html>
