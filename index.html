@@ -33,21 +33,18 @@
         .header h1 { font-size: 24px; margin: 0 0 5px 0; font-weight: bold; }
         .header p { color: var(--text-muted); font-size: 14px; margin: 0; }
 
-        /* Переключатель */
+        /* Переключатель (3 вкладки) */
         .mode-toggle {
-            display: flex;
-            background: var(--card-bg);
-            border-radius: 8px;
-            padding: 4px;
-            margin-bottom: 15px;
+            display: flex; background: var(--card-bg); border-radius: 8px;
+            padding: 4px; margin-bottom: 15px;
         }
         .mode-btn {
             flex: 1; padding: 10px; text-align: center; border-radius: 6px;
             cursor: pointer; font-weight: bold; color: var(--text-muted); transition: all 0.2s;
+            font-size: 14px;
         }
         .mode-btn.active { background: var(--accent); color: white; }
 
-        /* Селект и Инпут */
         .selector { margin-bottom: 20px; }
         .selector select, .selector input {
             width: 100%; padding: 12px; border-radius: 8px; font-size: 16px;
@@ -56,10 +53,8 @@
             box-sizing: border-box; margin-bottom: 10px;
         }
         
-        /* Скрытие элементов */
         .hidden { display: none !important; }
 
-        /* Кнопки */
         .btn-login {
             width: 100%; padding: 12px; border-radius: 8px; font-size: 16px;
             background: var(--accent); color: white; border: none; font-weight: bold;
@@ -71,7 +66,6 @@
             cursor: pointer; margin-bottom: 15px;
         }
 
-        /* Сетка дней */
         .days-grid {
             display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;
         }
@@ -89,7 +83,6 @@
         }
         .day-card.is-today .day-card-title { color: var(--accent); }
 
-        /* Кнопка звонков */
         .btn-bells {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             background: linear-gradient(135deg, #1976d2, #2196f3);
@@ -99,7 +92,6 @@
         }
         .btn-bells span { font-size: 12px; font-weight: normal; opacity: 0.8; margin-top: 4px; }
 
-        /* Экран расписания */
         #schedule-content { display: none; }
         .schedule-header { display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #3d4250; padding-bottom: 10px; }
         .back-icon { font-size: 24px; cursor: pointer; margin-right: 10px; color: var(--accent); }
@@ -114,6 +106,27 @@
         .lesson-subject { font-weight: 500; margin-bottom: 4px; }
         .lesson-room { font-size: 13px; color: var(--text-muted); }
         .lesson-teacher { font-size: 13px; color: #ffb74d; margin-top: 4px; }
+
+        /* Стили для вкладки замен */
+        .replacement-image-container {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 10px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .replacement-image-container img {
+            width: 100%;
+            border-radius: 8px;
+            display: block;
+        }
+        .no-image-text {
+            color: var(--text-muted);
+            padding: 40px 20px;
+            text-align: center;
+            border: 2px dashed #3d4250;
+            border-radius: 8px;
+        }
 
         /* Модальное окно звонков */
         .modal-overlay {
@@ -149,10 +162,11 @@
         </div>
 
         <div id="main-screen">
-            <!-- Переключатель -->
+            <!-- Переключатель (теперь их 3) -->
             <div class="mode-toggle">
                 <div class="mode-btn active" id="btnStudent" onclick="switchMode('student')">Студент</div>
-                <div class="mode-btn" id="btnTeacher" onclick="switchMode('teacher')">Преподаватель</div>
+                <div class="mode-btn" id="btnTeacher" onclick="switchMode('teacher')">Препод</div>
+                <div class="mode-btn" id="btnReplacements" onclick="switchMode('replacements')">Замены</div>
             </div>
 
             <!-- Блок для студентов -->
@@ -164,7 +178,6 @@
 
             <!-- Блок для преподавателей -->
             <div id="teacherBlock" class="hidden">
-                <!-- Если не авторизован - показываем ввод кода -->
                 <div id="authForm">
                     <div class="selector">
                         <input type="password" id="accessCode" placeholder="Введите код доступа">
@@ -175,7 +188,6 @@
                     </p>
                 </div>
 
-                <!-- Если авторизован - показываем профиль и кнопку выхода -->
                 <div id="teacherProfile" class="hidden">
                     <p style="text-align: center; color: var(--text-muted); margin-bottom: 10px;">
                         Вы вошли как: <strong id="teacherName" style="color: white;"></strong>
@@ -183,6 +195,13 @@
                     <button class="btn-logout" onclick="logoutTeacher()">
                         Выйти из профиля
                     </button>
+                </div>
+            </div>
+
+            <!-- Блок для замен -->
+            <div id="replacementsBlock" class="hidden">
+                <div class="replacement-image-container" id="imageContainer">
+                    <!-- Сюда будет подставляться картинка -->
                 </div>
             </div>
 
@@ -227,7 +246,6 @@
         </div>
     </div>
 
-    <!-- Подключаем данные и коды -->
     <script src="data.js"></script>
     <script src="auth.js"></script>
 
@@ -241,8 +259,8 @@
         const daysGrid = document.getElementById('daysGrid');
         const mainScreen = document.getElementById('main-screen');
         const scheduleContent = document.getElementById('schedule-content');
+        const imageContainer = document.getElementById('imageContainer');
         
-        // Элементы авторизации
         const authForm = document.getElementById('authForm');
         const teacherProfile = document.getElementById('teacherProfile');
         const teacherNameDisplay = document.getElementById('teacherName');
@@ -261,7 +279,6 @@
             { name: 'Суббота', index: 6, key: 'СУББОТА' }
         ];
 
-        // --- ЛОГИКА АВТОРИЗАЦИИ ---
         window.loginTeacher = function() {
             const code = accessCodeInput.value.trim().toUpperCase();
             if (teacherCodes[code]) {
@@ -273,7 +290,6 @@
             }
         };
 
-        // Проверяем, вошел ли учитель/админ
         function checkAuthState() {
             if (currentTeacherName) {
                 authForm.classList.add('hidden');
@@ -285,7 +301,6 @@
             }
         }
 
-        // Выход из профиля
         window.logoutTeacher = function() {
             currentTeacherName = "";
             localStorage.removeItem('teacherName');
@@ -293,25 +308,48 @@
             checkAuthState();
         };
 
-        // --- ПЕРЕКЛЮЧЕНИЕ РЕЖИМОВ ---
         window.switchMode = function(mode) {
             if (currentMode === mode) return;
             currentMode = mode;
             
-            document.getElementById('btnStudent').classList.toggle('active', mode === 'student');
-            document.getElementById('btnTeacher').classList.toggle('active', mode === 'teacher');
+            // Снимаем активный класс со всех кнопок
+            document.getElementById('btnStudent').classList.remove('active');
+            document.getElementById('btnTeacher').classList.remove('active');
+            document.getElementById('btnReplacements').classList.remove('active');
             
+            // Скрываем все блоки
+            document.getElementById('studentBlock').classList.add('hidden');
+            document.getElementById('teacherBlock').classList.add('hidden');
+            document.getElementById('replacementsBlock').classList.add('hidden');
+            daysGrid.classList.remove('hidden');
+            bellsBtn.classList.remove('hidden');
+
             if (mode === 'student') {
+                document.getElementById('btnStudent').classList.add('active');
                 document.getElementById('studentBlock').classList.remove('hidden');
-                document.getElementById('teacherBlock').classList.add('hidden');
-            } else {
-                document.getElementById('studentBlock').classList.add('hidden');
+            } else if (mode === 'teacher') {
+                document.getElementById('btnTeacher').classList.add('active');
                 document.getElementById('teacherBlock').classList.remove('hidden');
                 checkAuthState();
+            } else if (mode === 'replacements') {
+                document.getElementById('btnReplacements').classList.add('active');
+                document.getElementById('replacementsBlock').classList.remove('hidden');
+                
+                // Скрываем сетку дней и звонки, так как мы смотрим картинку
+                daysGrid.classList.add('hidden');
+                bellsBtn.classList.add('hidden');
+                
+                // Проверяем наличие картинки
+                // ВАЖНО: здесь мы ищем файл images/replacements.jpg в вашем репозитории
+                imageContainer.innerHTML = `
+                    <img src="images/replacements.jpg" onerror="this.style.display='none'; document.getElementById('noImgText').style.display='block';" alt="Замены">
+                    <div id="noImgText" class="no-image-text" style="display:none;">
+                        На сегодня замен нет (или фото еще не загружено).
+                    </div>
+                `;
             }
         };
 
-        // --- ИНИЦИАЛИЗАЦИЯ СПИСКА ГРУПП ---
         function initGroups() {
             const groups = new Set();
             for (const day in scheduleData) {
@@ -336,7 +374,6 @@
             });
         }
 
-        // --- ДАТЫ ---
         function getCurrentWeekDates() {
             const today = new Date();
             const currentDay = today.getDay() === 0 ? 7 : today.getDay(); 
@@ -356,7 +393,6 @@
             return dates;
         }
 
-        // --- ОТРИСОВКА ДНЕЙ ---
         function renderDaysGrid() {
             const weekDates = getCurrentWeekDates();
             const todayIndex = new Date().getDay() === 0 ? 7 : new Date().getDay();
@@ -379,7 +415,6 @@
             });
         }
 
-        // --- ПОКАЗ РАСПИСАНИЯ ---
         function showScheduleForDay(dayKey, displayTitle) {
             let selected = "";
             
@@ -404,16 +439,13 @@
             const dayData = scheduleData[dayKey];
             let lessonsToShow = [];
 
-            // ЛОГИКА ДЛЯ АДМИНИСТРАТОРА
             if (selected === "Администратор") {
                 html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Режим просмотра всех пар</p>`;
                 
                 for (const group in dayData) {
                     const groupLessons = dayData[group];
-                    
                     if (groupLessons.length > 0) {
                         html += `<div style="margin-top: 15px; margin-bottom: 5px; font-weight: bold; color: #ffb74d;">Группа: ${group}</div>`;
-                        
                         groupLessons.forEach(lesson => {
                             html += `
                                 <div class="lesson-item">
@@ -428,13 +460,10 @@
                         });
                     }
                 }
-                
                 if (html.indexOf('Группа:') === -1) {
                      html += '<p style="text-align:center; color:gray; margin-top:30px;">В этот день занятий нет.</p>';
                 }
-
             } else {
-                // ЛОГИКА ДЛЯ СТУДЕНТОВ И ПРЕПОДАВАТЕЛЕЙ
                 if (currentMode === 'student') {
                     lessonsToShow = dayData[selected] || [];
                 } else {
@@ -476,18 +505,15 @@
             mainScreen.style.display = 'block';
         }
 
-        // --- МОДАЛКА ЗВОНКОВ ---
         bellsBtn.addEventListener('click', () => bellsModal.classList.add('active'));
         closeModal.addEventListener('click', () => bellsModal.classList.remove('active'));
         bellsModal.addEventListener('click', (e) => {
             if (e.target === bellsModal) bellsModal.classList.remove('active');
         });
 
-        // --- ЗАПУСК ---
         initGroups();
         renderDaysGrid();
         
-        // Если ранее был авторизован
         if (currentTeacherName) {
             checkAuthState();
         }
