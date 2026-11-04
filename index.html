@@ -124,7 +124,7 @@
         .lesson-info { margin-left: 10px; flex: 1; }
         .lesson-subject { font-weight: 500; margin-bottom: 4px; }
         .lesson-room { font-size: 13px; color: var(--text-muted); }
-        .lesson-teacher { font-size: 13px; color: #ffb74d; margin-top: 4px; } /* Оранжевый для учителя */
+        .lesson-teacher { font-size: 13px; color: #ffb74d; margin-top: 4px; }
 
         /* Модальное окно */
         .modal-overlay {
@@ -220,7 +220,7 @@
     <script>
         try { if (window.WebApp) window.WebApp.ready(); } catch (e) {}
 
-        let currentMode = 'student'; // 'student' или 'teacher'
+        let currentMode = 'student';
         let groupsList = [];
         let teachersList = [];
 
@@ -229,7 +229,6 @@
         const mainScreen = document.getElementById('main-screen');
         const scheduleContent = document.getElementById('schedule-content');
         
-        // Модальное окно
         const bellsBtn = document.getElementById('bellsBtn');
         const bellsModal = document.getElementById('bellsModal');
         const closeModal = document.getElementById('closeModal');
@@ -243,7 +242,6 @@
             { name: 'Суббота', index: 6, key: 'СУББОТА' }
         ];
 
-        // Собираем списки групп и учителей
         function extractLists() {
             const groups = new Set();
             const teachers = new Set();
@@ -253,7 +251,6 @@
                     groups.add(group);
                     scheduleData[day][group].forEach(lesson => {
                         if (lesson.teacher && lesson.teacher !== "------" && lesson.teacher !== "-") {
-                            // Разбиваем строки типа "Иванов / Петров"
                             lesson.teacher.split('/').forEach(t => {
                                 const name = t.trim();
                                 if (name.length > 2) teachers.add(name);
@@ -266,7 +263,6 @@
             teachersList = Array.from(teachers).sort();
         }
 
-        // Переключение режима
         window.switchMode = function(mode) {
             if (currentMode === mode) return;
             currentMode = mode;
@@ -277,7 +273,6 @@
             updateSelectOptions();
         };
 
-        // Обновление выпадающего списка
         function updateSelectOptions() {
             const saved = localStorage.getItem(`saved_${currentMode}`) || "";
             selectionSelect.innerHTML = '';
@@ -296,12 +291,10 @@
             });
         }
 
-        // Сохранение выбора
         selectionSelect.addEventListener('change', (e) => {
             localStorage.setItem(`saved_${currentMode}`, e.target.value);
         });
 
-        // Даты
         function getCurrentWeekDates() {
             const today = new Date();
             const currentDay = today.getDay() === 0 ? 7 : today.getDay(); 
@@ -321,7 +314,6 @@
             return dates;
         }
 
-        // Отрисовка дней
         function renderDaysGrid() {
             const weekDates = getCurrentWeekDates();
             const todayIndex = new Date().getDay() === 0 ? 7 : new Date().getDay();
@@ -344,7 +336,6 @@
             });
         }
 
-        // Показ расписания
         function showScheduleForDay(dayKey, displayTitle) {
             const selected = selectionSelect.value;
             if (!selected) {
@@ -366,22 +357,19 @@
             let lessonsToShow = [];
 
             if (currentMode === 'student') {
-                // Для студента — просто берем расписание группы
                 lessonsToShow = dayData[selected] || [];
             } else {
-                // Для учителя — ищем его пары во всех группах
                 for (const group in dayData) {
                     const groupLessons = dayData[group];
                     groupLessons.forEach(lesson => {
                         if (lesson.teacher && lesson.teacher.includes(selected)) {
                             lessonsToShow.push({
                                 ...lesson,
-                                group: group // Добавляем имя группы для отображения
+                                group: group
                             });
                         }
                     });
                 }
-                // Сортируем по номеру пары
                 lessonsToShow.sort((a, b) => a.time - b.time);
             }
 
@@ -411,23 +399,15 @@
             mainScreen.style.display = 'block';
         }
 
-        // Модальное окно звонков
         bellsBtn.addEventListener('click', () => bellsModal.classList.add('active'));
         closeModal.addEventListener('click', () => bellsModal.classList.remove('active'));
         bellsModal.addEventListener('click', (e) => {
             if (e.target === bellsModal) bellsModal.classList.remove('active');
         });
 
-        // Инициализация
         extractLists();
         updateSelectOptions();
         renderDaysGrid();
-
-        // Восстанавливаем режим при загрузке
-        const savedMode = localStorage.getItem('currentMode');
-        if (savedMode && savedMode !== currentMode) {
-            switchMode(savedMode);
-        }
     </script>
 </body>
 </html>
