@@ -112,11 +112,15 @@
                 <div class="mode-btn" id="btnReplacements" onclick="switchMode('replacements')">Замены</div>
             </div>
 
+            <!-- Блок для студентов -->
             <div id="studentBlock">
-                <div class="selector">
-                    <select id="groupSelect">
-                        <option value="">Загрузка...</option>
-                    </select>
+                <div id="studentAuthForm" class="selector">
+                    <input type="text" id="studentCode" placeholder="Введите вашу фамилию">
+                    <button class="btn-login" onclick="loginStudent()">Войти</button>
+                </div>
+                <div id="studentProfile" class="hidden">
+                    <p style="text-align: center; color: var(--text-muted); margin-bottom: 10px;">Вы вошли как: <strong id="studentGroupName" style="color: white;"></strong></p>
+                    <button class="btn-logout" onclick="logoutStudent()">Выйти</button>
                 </div>
             </div>
 
@@ -130,7 +134,6 @@
                 <div id="teacherProfile" class="hidden">
                     <p style="text-align: center; color: var(--text-muted); margin-bottom: 10px;">Вы вошли как: <strong id="teacherName" style="color: white;"></strong></p>
                     
-                    <!-- Список преподавателей для диспетчера -->
                     <div id="adminSelector" class="hidden selector" style="margin-top: 15px;">
                         <select id="teacherSelect">
                             <option value="">Выберите преподавателя</option>
@@ -185,27 +188,37 @@
         </div>
     </div>
 
+    <!-- Подключение файлов с данными -->
     <script src="data.js"></script>
     <script src="auth.js"></script>
+    <script src="students/auth.js"></script>
 
     <script>
         try { if (window.WebApp) window.WebApp.ready(); } catch (e) {}
 
         let currentMode = 'student';
         let currentTeacherName = localStorage.getItem('teacherName') || "";
-        let currentAdminViewMode = "all"; // Для админа: "all" (всё) или "teacher" (конкретный)
+        let currentStudentGroup = localStorage.getItem('studentGroup') || "";
+        let currentAdminViewMode = "all";
         
-        const groupSelect = document.getElementById('groupSelect');
+        const groupSelect = document.getElementById('groupSelect'); // скрыт, но нужен для логики
         const teacherSelect = document.getElementById('teacherSelect');
         const adminSelector = document.getElementById('adminSelector');
         const daysGrid = document.getElementById('daysGrid');
         const mainScreen = document.getElementById('main-screen');
         const scheduleContent = document.getElementById('schedule-content');
         const imageContainer = document.getElementById('imageContainer');
+        
         const authForm = document.getElementById('authForm');
         const teacherProfile = document.getElementById('teacherProfile');
         const teacherNameDisplay = document.getElementById('teacherName');
         const accessCodeInput = document.getElementById('accessCode');
+
+        const studentAuthForm = document.getElementById('studentAuthForm');
+        const studentProfile = document.getElementById('studentProfile');
+        const studentGroupName = document.getElementById('studentGroupName');
+        const studentCodeInput = document.getElementById('studentCode');
+
         const bellsBtn = document.getElementById('bellsBtn');
         const bellsModal = document.getElementById('bellsModal');
         const closeModal = document.getElementById('closeModal');
@@ -220,25 +233,38 @@
             { name: 'Суббота', index: 6, key: 'СУББОТА' }
         ];
 
-        async function checkReplacementsUpdate() {
-            try {
-                const response = await fetch('replacements.jpg', { method: 'HEAD' });
-                if (response.ok) {
-                    const lastModified = response.headers.get('Last-Modified');
-                    if (lastModified) {
-                        const serverDate = new Date(lastModified).getTime();
-                        const localDate = parseInt(localStorage.getItem('lastViewedReplacements') || '0');
-                        if (serverDate > localDate) { replacementNotice.classList.remove('hidden'); }
-                    }
-                }
-            } catch (e) { console.log("Ошибка проверки замен", e); }
-        }
-
-        window.markReplacementsAsViewed = function() {
-            localStorage.setItem('lastViewedReplacements', Date.now().toString());
-            replacementNotice.classList.add('hidden');
+        // Авторизация студентов
+        window.loginStudent = function() {
+            const login = studentCodeInput.value.trim().toUpperCase();
+            // Проверяем по фамилии
+            if (studentCodes[login]) {
+                currentStudentGroup = studentCodes[login];
+                localStorage.setItem('studentGroup', currentStudentGroup);
+                checkStudentAuthState();
+            } else {
+                alert("Фамилия не найдена. Введите фамилию русскими буквами (например, ИВАНОВ). Если вы однофамилец, добавьте инициал (например, ИВАНОВ_А).");
+            }
         };
 
+        function checkStudentAuthState() {
+            if (currentStudentGroup) {
+                studentAuthForm.classList.add('hidden');
+                studentProfile.classList.remove('hidden');
+                studentGroupName.textContent = currentStudentGroup;
+            } else {
+                studentAuthForm.classList.remove('hidden');
+                studentProfile.classList.add('hidden');
+            }
+        }
+
+        window.logoutStudent = function() {
+            currentStudentGroup = "";
+            localStorage.removeItem('studentGroup');
+            studentCodeInput.value = "";
+            checkStudentAuthState();
+        };
+
+        // Авторизация преподавателей
         window.loginTeacher = function() {
             const code = accessCodeInput.value.trim().toUpperCase();
             if (teacherCodes[code]) {
@@ -254,7 +280,6 @@
                 teacherProfile.classList.remove('hidden');
                 teacherNameDisplay.textContent = currentTeacherName;
                 
-                // Если это диспетчер, показываем ему список преподавателей
                 if (currentTeacherName === "Диспетчер") {
                     adminSelector.classList.remove('hidden');
                     populateTeacherSelect();
@@ -268,10 +293,8 @@
             }
         }
 
-        // Заполняем список для диспетчера
         function populateTeacherSelect() {
             const teachers = new Set();
-            // Собираем всех учителей из данных
             for (const day in scheduleData) {
                 for (const group in scheduleData[day]) {
                     scheduleData[day][group].forEach(lesson => {
@@ -307,6 +330,25 @@
             checkAuthState();
         };
 
+        async function checkReplacementsUpdate() {
+            try {
+                const response = await fetch('replacements.jpg', { method: 'HEAD' });
+                if (response.ok) {
+                    const lastModified = response.headers.get('Last-Modified');
+                    if (lastModified) {
+                        const serverDate = new Date(lastModified).getTime();
+                        const localDate = parseInt(localStorage.getItem('lastViewedReplacements') || '0');
+                        if (serverDate > localDate) { replacementNotice.classList.remove('hidden'); }
+                    }
+                }
+            } catch (e) { console.log("Ошибка проверки замен", e); }
+        }
+
+        window.markReplacementsAsViewed = function() {
+            localStorage.setItem('lastViewedReplacements', Date.now().toString());
+            replacementNotice.classList.add('hidden');
+        };
+
         window.switchMode = function(mode) {
             if (currentMode === mode) return;
             currentMode = mode;
@@ -324,6 +366,7 @@
             if (mode === 'student') {
                 document.getElementById('btnStudent').classList.add('active');
                 document.getElementById('studentBlock').classList.remove('hidden');
+                checkStudentAuthState();
             } else if (mode === 'teacher') {
                 document.getElementById('btnTeacher').classList.add('active');
                 document.getElementById('teacherBlock').classList.remove('hidden');
@@ -340,25 +383,6 @@
                 `;
             }
         };
-
-        function initGroups() {
-            const groups = new Set();
-            for (const day in scheduleData) {
-                for (const group in scheduleData[day]) { groups.add(group); }
-            }
-            const savedGroup = localStorage.getItem('savedGroup') || "";
-            groupSelect.innerHTML = '<option value="">Выберите группу</option>';
-            Array.from(groups).sort().forEach(group => {
-                const option = document.createElement('option');
-                option.value = group;
-                option.textContent = group;
-                if (group === savedGroup) option.selected = true;
-                groupSelect.appendChild(option);
-            });
-            groupSelect.addEventListener('change', (e) => {
-                localStorage.setItem('savedGroup', e.target.value);
-            });
-        }
 
         function getCurrentWeekDates() {
             const today = new Date();
@@ -400,8 +424,8 @@
             let selected = "";
             
             if (currentMode === 'student') {
-                selected = groupSelect.value;
-                if (!selected) { alert("Выберите группу!"); return; }
+                if (!currentStudentGroup) { alert("Сначала введите фамилию."); return; }
+                selected = currentStudentGroup;
             } else {
                 if (!currentTeacherName) { alert("Сначала введите код доступа."); return; }
                 selected = currentTeacherName;
@@ -420,10 +444,8 @@
             const dayData = scheduleData[dayKey];
             let lessonsToShow = [];
 
-            // ЛОГИКА ДЛЯ ДИСПЕТЧЕРА
             if (selected === "Диспетчер") {
                 if (currentAdminViewMode === "all") {
-                    // Показываем всё
                     html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Все пары</p>`;
                     for (const group in dayData) {
                         const groupLessons = dayData[group];
@@ -445,10 +467,8 @@
                     }
                     if (html.indexOf('Группа:') === -1) { html += '<p style="text-align:center; color:gray; margin-top:30px;">В этот день занятий нет.</p>'; }
                 } else {
-                    // Показываем только выбранного учителя
                     const selectedTeacher = teacherSelect.value;
                     html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Пары: ${selectedTeacher}</p>`;
-                    
                     for (const group in dayData) {
                         const groupLessons = dayData[group];
                         groupLessons.forEach(lesson => {
@@ -477,7 +497,6 @@
                     }
                 }
             } else {
-                // ЛОГИКА ДЛЯ СТУДЕНТОВ И ПРЕПОДАВАТЕЛЕЙ
                 if (currentMode === 'student') {
                     lessonsToShow = dayData[selected] || [];
                 } else {
@@ -525,9 +544,9 @@
 
         // Запуск
         renderDaysGrid();
-        initGroups();
+        checkStudentAuthState();
+        checkAuthState();
         checkReplacementsUpdate();
-        if (currentTeacherName) checkAuthState();
     </script>
 </body>
 </html>
