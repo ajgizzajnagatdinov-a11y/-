@@ -129,6 +129,14 @@
                 </div>
                 <div id="teacherProfile" class="hidden">
                     <p style="text-align: center; color: var(--text-muted); margin-bottom: 10px;">Вы вошли как: <strong id="teacherName" style="color: white;"></strong></p>
+                    
+                    <!-- Список преподавателей для диспетчера -->
+                    <div id="adminSelector" class="hidden selector" style="margin-top: 15px;">
+                        <select id="teacherSelect">
+                            <option value="">Выберите преподавателя</option>
+                        </select>
+                    </div>
+
                     <button class="btn-logout" onclick="logoutTeacher()">Выйти из профиля</button>
                 </div>
             </div>
@@ -185,8 +193,11 @@
 
         let currentMode = 'student';
         let currentTeacherName = localStorage.getItem('teacherName') || "";
+        let currentAdminViewMode = "all"; // Для админа: "all" (всё) или "teacher" (конкретный)
         
         const groupSelect = document.getElementById('groupSelect');
+        const teacherSelect = document.getElementById('teacherSelect');
+        const adminSelector = document.getElementById('adminSelector');
         const daysGrid = document.getElementById('daysGrid');
         const mainScreen = document.getElementById('main-screen');
         const scheduleContent = document.getElementById('schedule-content');
@@ -217,9 +228,7 @@
                     if (lastModified) {
                         const serverDate = new Date(lastModified).getTime();
                         const localDate = parseInt(localStorage.getItem('lastViewedReplacements') || '0');
-                        if (serverDate > localDate) {
-                            replacementNotice.classList.remove('hidden');
-                        }
+                        if (serverDate > localDate) { replacementNotice.classList.remove('hidden'); }
                     }
                 }
             } catch (e) { console.log("Ошибка проверки замен", e); }
@@ -244,16 +253,57 @@
                 authForm.classList.add('hidden');
                 teacherProfile.classList.remove('hidden');
                 teacherNameDisplay.textContent = currentTeacherName;
+                
+                // Если это диспетчер, показываем ему список преподавателей
+                if (currentTeacherName === "Диспетчер") {
+                    adminSelector.classList.remove('hidden');
+                    populateTeacherSelect();
+                } else {
+                    adminSelector.classList.add('hidden');
+                }
             } else {
                 authForm.classList.remove('hidden');
                 teacherProfile.classList.add('hidden');
+                adminSelector.classList.add('hidden');
             }
+        }
+
+        // Заполняем список для диспетчера
+        function populateTeacherSelect() {
+            const teachers = new Set();
+            // Собираем всех учителей из данных
+            for (const day in scheduleData) {
+                for (const group in scheduleData[day]) {
+                    scheduleData[day][group].forEach(lesson => {
+                        if (lesson.teacher && lesson.teacher !== '------') {
+                            lesson.teacher.split('/').forEach(t => {
+                                let name = t.trim();
+                                if (name.length > 2) teachers.add(name);
+                            });
+                        }
+                    });
+                }
+            }
+
+            teacherSelect.innerHTML = '<option value="">Показать всех</option>';
+            Array.from(teachers).sort().forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                teacherSelect.appendChild(option);
+            });
+
+            teacherSelect.addEventListener('change', (e) => {
+                currentAdminViewMode = e.target.value === "" ? "all" : "teacher";
+            });
         }
 
         window.logoutTeacher = function() {
             currentTeacherName = "";
             localStorage.removeItem('teacherName');
             accessCodeInput.value = "";
+            currentAdminViewMode = "all";
+            teacherSelect.value = "";
             checkAuthState();
         };
 
@@ -284,7 +334,6 @@
                 daysGrid.classList.add('hidden');
                 bellsBtn.classList.add('hidden');
                 markReplacementsAsViewed();
-
                 imageContainer.innerHTML = `
                     <img src="replacements.jpg" onerror="this.style.display='none'; document.getElementById('noImgText').style.display='block';" alt="Замены">
                     <div id="noImgText" class="no-image-text" style="display:none;">На сегодня замен нет.</div>
@@ -297,16 +346,8 @@
             for (const day in scheduleData) {
                 for (const group in scheduleData[day]) { groups.add(group); }
             }
-            
             const savedGroup = localStorage.getItem('savedGroup') || "";
-            
-            if (groups.size === 0) {
-                groupSelect.innerHTML = '<option value="">Группы не найдены</option>';
-                return;
-            }
-
             groupSelect.innerHTML = '<option value="">Выберите группу</option>';
-            
             Array.from(groups).sort().forEach(group => {
                 const option = document.createElement('option');
                 option.value = group;
@@ -314,7 +355,6 @@
                 if (group === savedGroup) option.selected = true;
                 groupSelect.appendChild(option);
             });
-            
             groupSelect.addEventListener('change', (e) => {
                 localStorage.setItem('savedGroup', e.target.value);
             });
@@ -325,7 +365,6 @@
             const currentDay = today.getDay() === 0 ? 7 : today.getDay(); 
             const monday = new Date(today);
             monday.setDate(today.getDate() - currentDay + 1);
-
             const dates = [];
             for (let i = 0; i < 6; i++) {
                 const d = new Date(monday);
@@ -342,20 +381,16 @@
         function renderDaysGrid() {
             const weekDates = getCurrentWeekDates();
             const todayIndex = new Date().getDay() === 0 ? 7 : new Date().getDay();
-            
             daysGrid.innerHTML = '';
-            
             daysOfWeek.forEach((day, i) => {
                 const date = weekDates[i];
                 const card = document.createElement('div');
                 card.className = 'day-card';
                 if (day.index === todayIndex) card.classList.add('is-today');
-                
                 card.innerHTML = `
                     <div class="day-card-title">${day.name}</div>
                     <div class="day-card-date">${date.day}.${date.month}.${date.year}</div>
                 `;
-                
                 card.onclick = () => showScheduleForDay(day.key, `${day.name} (${date.day}.${date.month})`);
                 daysGrid.appendChild(card);
             });
@@ -385,28 +420,64 @@
             const dayData = scheduleData[dayKey];
             let lessonsToShow = [];
 
-            if (selected === "Администратор") {
-                html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Режим просмотра всех пар</p>`;
-                for (const group in dayData) {
-                    const groupLessons = dayData[group];
-                    if (groupLessons.length > 0) {
-                        html += `<div style="margin-top: 15px; margin-bottom: 5px; font-weight: bold; color: #ffb74d;">Группа: ${group}</div>`;
+            // ЛОГИКА ДЛЯ ДИСПЕТЧЕРА
+            if (selected === "Диспетчер") {
+                if (currentAdminViewMode === "all") {
+                    // Показываем всё
+                    html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Все пары</p>`;
+                    for (const group in dayData) {
+                        const groupLessons = dayData[group];
+                        if (groupLessons.length > 0) {
+                            html += `<div style="margin-top: 15px; margin-bottom: 5px; font-weight: bold; color: #ffb74d;">Группа: ${group}</div>`;
+                            groupLessons.forEach(lesson => {
+                                html += `
+                                    <div class="lesson-item">
+                                        <div class="lesson-time">${lesson.time}.</div>
+                                        <div class="lesson-info">
+                                            <div class="lesson-subject">${lesson.subject}</div>
+                                            ${lesson.room ? `<div class="lesson-room">каб. ${lesson.room}</div>` : ''}
+                                            ${lesson.teacher ? `<div class="lesson-teacher">${lesson.teacher}</div>` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        }
+                    }
+                    if (html.indexOf('Группа:') === -1) { html += '<p style="text-align:center; color:gray; margin-top:30px;">В этот день занятий нет.</p>'; }
+                } else {
+                    // Показываем только выбранного учителя
+                    const selectedTeacher = teacherSelect.value;
+                    html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Пары: ${selectedTeacher}</p>`;
+                    
+                    for (const group in dayData) {
+                        const groupLessons = dayData[group];
                         groupLessons.forEach(lesson => {
+                            if (lesson.teacher && lesson.teacher.includes(selectedTeacher)) {
+                                lessonsToShow.push({ ...lesson, group: group });
+                            }
+                        });
+                    }
+                    lessonsToShow.sort((a, b) => a.time - b.time);
+
+                    if (lessonsToShow.length > 0) {
+                        lessonsToShow.forEach(lesson => {
                             html += `
                                 <div class="lesson-item">
                                     <div class="lesson-time">${lesson.time}.</div>
                                     <div class="lesson-info">
                                         <div class="lesson-subject">${lesson.subject}</div>
                                         ${lesson.room ? `<div class="lesson-room">каб. ${lesson.room}</div>` : ''}
-                                        ${lesson.teacher ? `<div class="lesson-teacher">${lesson.teacher}</div>` : ''}
+                                        <div class="lesson-teacher">Группа: ${lesson.group}</div>
                                     </div>
                                 </div>
                             `;
                         });
+                    } else {
+                        html += '<p style="text-align:center; color:gray; margin-top:30px;">У этого преподавателя в этот день занятий нет.</p>';
                     }
                 }
-                if (html.indexOf('Группа:') === -1) { html += '<p style="text-align:center; color:gray; margin-top:30px;">В этот день занятий нет.</p>'; }
             } else {
+                // ЛОГИКА ДЛЯ СТУДЕНТОВ И ПРЕПОДАВАТЕЛЕЙ
                 if (currentMode === 'student') {
                     lessonsToShow = dayData[selected] || [];
                 } else {
