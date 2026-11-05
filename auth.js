@@ -2,7 +2,10 @@
 //const teacherCodes = {
 //  "ADMIN2026": "Администратор", // <-- Добавьте эту строку
 // 
-// 
+const teacherRoles = {
+  "ADMIN2026": "admin" // Указываем, что это диспетчер
+};
+
 const teacherCodes = {
   "ADMINMPK.RU": "Администратор",
   "&MPK.RU24": "Администратор",
