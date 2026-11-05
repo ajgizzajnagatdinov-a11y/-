@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Расписание</title>
     <script src="https://st.max.ru/js/max-web-app.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
             --bg-color: #1a1c23; --card-bg: #262933; --card-hover: #2d3341;
@@ -21,7 +20,6 @@
         .header h1 { font-size: 24px; margin: 0 0 5px 0; font-weight: bold; }
         .header p { color: var(--text-muted); font-size: 14px; margin: 0; }
 
-        /* Плашка уведомления */
         .notification-banner {
             background: linear-gradient(135deg, #e53935, #ff5252);
             color: white; padding: 12px; border-radius: 8px; margin-bottom: 15px;
@@ -117,7 +115,7 @@
             <div id="studentBlock">
                 <div class="selector">
                     <select id="groupSelect">
-                        <option value="">Загрузка расписания...</option>
+                        <option value="">Загрузка...</option>
                     </select>
                 </div>
             </div>
@@ -179,12 +177,12 @@
         </div>
     </div>
 
+    <script src="data.js"></script>
     <script src="auth.js"></script>
 
     <script>
         try { if (window.WebApp) window.WebApp.ready(); } catch (e) {}
 
-        let scheduleData = {};
         let currentMode = 'student';
         let currentTeacherName = localStorage.getItem('teacherName') || "";
         
@@ -231,75 +229,6 @@
             localStorage.setItem('lastViewedReplacements', Date.now().toString());
             replacementNotice.classList.add('hidden');
         };
-
-        async function loadScheduleFromExcel() {
-            try {
-                const response = await fetch('Расписание для бот.xlsx');
-                const arrayBuffer = await response.arrayBuffer();
-                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                
-                parseExcelRows(rows);
-                initGroups();
-            } catch (error) {
-                console.error("Ошибка загрузки Excel:", error);
-                groupSelect.innerHTML = '<option value="">Ошибка загрузки</option>';
-            }
-        }
-
-        function parseExcelRows(rows) {
-            scheduleData = {};
-            let currentDay = null;
-            let groupsMap = {};
-            
-            // Ищем строку с названиями групп
-            for (let i = 0; i < rows.length; i++) {
-                if (rows[i] && rows[i].some(cell => String(cell).includes('1Б') || String(cell).includes('1А'))) {
-                    for (let j = 0; j < rows[i].length; j++) {
-                        let cell = rows[i][j];
-                        if (cell && typeof cell === 'string' && cell.trim().length > 0 && !cell.includes('ПОНЕДЕЛЬНИК')) {
-                            groupsMap[j] = cell.trim();
-                        }
-                    }
-                    break;
-                }
-            }
-
-            for (let i = 0; i < rows.length; i++) {
-                const row = rows[i];
-                if (!row) continue;
-                const firstCell = String(row[0] || '').toUpperCase();
-                const dayMatch = daysOfWeek.find(d => firstCell.includes(d.key.substring(0, 3)));
-                
-                if (dayMatch) {
-                    currentDay = dayMatch.key;
-                    scheduleData[currentDay] = {};
-                    continue;
-                }
-
-                if (currentDay && row[1] && !isNaN(parseInt(row[1]))) {
-                    const lessonTime = parseInt(row[1]);
-                    for (const colIndex in groupsMap) {
-                        const groupName = groupsMap[colIndex];
-                        const colIdx = parseInt(colIndex);
-                        const subject = row[colIdx];
-                        const room = row[colIdx + 1];
-                        const teacher = row[colIdx + 2];
-
-                        if (subject && subject !== '------' && subject !== '-----' && subject !== '') {
-                            if (!scheduleData[currentDay][groupName]) scheduleData[currentDay][groupName] = [];
-                            scheduleData[currentDay][groupName].push({
-                                time: lessonTime, subject: String(subject).trim(),
-                                room: room ? String(room).trim() : '',
-                                teacher: teacher ? String(teacher).trim() : ''
-                            });
-                        }
-                    }
-                }
-            }
-        }
 
         window.loginTeacher = function() {
             const code = accessCodeInput.value.trim().toUpperCase();
@@ -363,13 +292,10 @@
             }
         };
 
-        // ИСПРАВЛЕННАЯ ФУНКЦИЯ ИНИЦИАЛИЗАЦИИ ГРУПП
         function initGroups() {
             const groups = new Set();
             for (const day in scheduleData) {
-                for (const group in scheduleData[day]) { 
-                    groups.add(group); 
-                }
+                for (const group in scheduleData[day]) { groups.add(group); }
             }
             
             const savedGroup = localStorage.getItem('savedGroup') || "";
@@ -528,7 +454,7 @@
 
         // Запуск
         renderDaysGrid();
-        loadScheduleFromExcel();
+        initGroups();
         checkReplacementsUpdate();
         if (currentTeacherName) checkAuthState();
     </script>
