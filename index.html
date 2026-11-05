@@ -17,7 +17,7 @@
         }
         .app-container { width: 100%; max-width: 600px; }
         .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { font-size: 24px; margin: 0 0 5px 0; font-weight: bold; }
+        .header h1 { font-size: 22px; margin: 0 0 5px 0; font-weight: bold; }
         .header p { color: var(--text-muted); font-size: 14px; margin: 0; }
 
         .notification-banner {
@@ -96,7 +96,7 @@
 <body>
     <div class="app-container">
         <div class="header">
-            <h1>Расписание занятий</h1>
+            <h1 id="greeting">Расписание занятий</h1>
             <p>ГБПОУ МПК</p>
         </div>
 
@@ -124,6 +124,7 @@
                 </div>
             </div>
 
+            <!-- Блок для преподавателей -->
             <div id="teacherBlock" class="hidden">
                 <div id="authForm">
                     <div class="selector">
@@ -144,6 +145,7 @@
                 </div>
             </div>
 
+            <!-- Блок для замен -->
             <div id="replacementsBlock" class="hidden">
                 <div class="replacement-image-container" id="imageContainer"></div>
             </div>
@@ -159,6 +161,7 @@
         <div id="schedule-content"></div>
     </div>
 
+    <!-- Модальное окно звонков -->
     <div class="modal-overlay" id="bellsModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -201,7 +204,6 @@
         let currentStudentGroup = localStorage.getItem('studentGroup') || "";
         let currentAdminViewMode = "all";
         
-        const groupSelect = document.getElementById('groupSelect'); // скрыт, но нужен для логики
         const teacherSelect = document.getElementById('teacherSelect');
         const adminSelector = document.getElementById('adminSelector');
         const daysGrid = document.getElementById('daysGrid');
@@ -233,16 +235,35 @@
             { name: 'Суббота', index: 6, key: 'СУББОТА' }
         ];
 
+        // --- ПРИВЕТСТВИЕ ---
+        function updateGreeting() {
+            const greetingElement = document.getElementById('greeting');
+            const hour = new Date().getHours();
+            let greeting = "Добрый день!";
+            
+            if (hour >= 5 && hour < 12) greeting = "Доброе утро!";
+            else if (hour >= 12 && hour < 18) greeting = "Добрый день!";
+            else if (hour >= 18 && hour < 23) greeting = "Добрый вечер!";
+            else greeting = "Доброй ночи!";
+
+            if (currentMode === 'student' && currentStudentGroup) {
+                greetingElement.textContent = `${greeting} Группа ${currentStudentGroup}`;
+            } else if (currentMode === 'teacher' && currentTeacherName) {
+                greetingElement.textContent = `${greeting} ${currentTeacherName}`;
+            } else {
+                greetingElement.textContent = greeting;
+            }
+        }
+
         // Авторизация студентов
         window.loginStudent = function() {
             const login = studentCodeInput.value.trim().toUpperCase();
-            // Проверяем по фамилии
             if (studentCodes[login]) {
                 currentStudentGroup = studentCodes[login];
                 localStorage.setItem('studentGroup', currentStudentGroup);
                 checkStudentAuthState();
             } else {
-                alert("Фамилия не найдена. Введите фамилию русскими буквами (например, ИВАНОВ). Если вы однофамилец, добавьте инициал (например, ИВАНОВ_А).");
+                alert("Фамилия не найдена. Введите фамилию русскими буквами. Если вы однофамилец, добавьте инициал (например, ИВАНОВ_А).");
             }
         };
 
@@ -255,6 +276,7 @@
                 studentAuthForm.classList.remove('hidden');
                 studentProfile.classList.add('hidden');
             }
+            updateGreeting();
         }
 
         window.logoutStudent = function() {
@@ -291,6 +313,7 @@
                 teacherProfile.classList.add('hidden');
                 adminSelector.classList.add('hidden');
             }
+            updateGreeting();
         }
 
         function populateTeacherSelect() {
@@ -382,6 +405,7 @@
                     <div id="noImgText" class="no-image-text" style="display:none;">На сегодня замен нет.</div>
                 `;
             }
+            updateGreeting();
         };
 
         function getCurrentWeekDates() {
@@ -547,6 +571,7 @@
         checkStudentAuthState();
         checkAuthState();
         checkReplacementsUpdate();
+        updateGreeting();
     </script>
 </body>
 </html>
