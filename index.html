@@ -24,25 +24,13 @@
         /* Плашка уведомления */
         .notification-banner {
             background: linear-gradient(135deg, #e53935, #ff5252);
-            color: white;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            animation: pulse 2s infinite;
-            box-shadow: 0 4px 15px rgba(229, 57, 53, 0.3);
+            color: white; padding: 12px; border-radius: 8px; margin-bottom: 15px;
+            display: flex; align-items: center; justify-content: space-between;
+            font-size: 14px; font-weight: bold; cursor: pointer;
+            animation: pulse 2s infinite; box-shadow: 0 4px 15px rgba(229, 57, 53, 0.3);
         }
         .notification-banner.hidden { display: none; }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.02); }
-            100% { transform: scale(1); }
-        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
 
         .mode-toggle { display: flex; background: var(--card-bg); border-radius: 8px; padding: 4px; margin-bottom: 15px; }
         .mode-btn { flex: 1; padding: 10px; text-align: center; border-radius: 6px; cursor: pointer; font-weight: bold; color: var(--text-muted); transition: all 0.2s; font-size: 14px; }
@@ -115,7 +103,6 @@
         </div>
 
         <div id="main-screen">
-            <!-- Плашка уведомления о заменах -->
             <div class="notification-banner hidden" id="replacementNotice" onclick="switchMode('replacements')">
                 <span>🔔 Обновлены замены!</span>
                 <span>Смотреть &rarr;</span>
@@ -129,7 +116,9 @@
 
             <div id="studentBlock">
                 <div class="selector">
-                    <select id="groupSelect"></select>
+                    <select id="groupSelect">
+                        <option value="">Загрузка расписания...</option>
+                    </select>
                 </div>
             </div>
 
@@ -222,36 +211,27 @@
             { name: 'Суббота', index: 6, key: 'СУББОТА' }
         ];
 
-        // --- ПРОВЕРКА ОБНОВЛЕНИЯ ЗАМЕН ---
         async function checkReplacementsUpdate() {
             try {
-                // Отправляем запрос HEAD, чтобы узнать дату изменения файла без его скачивания
                 const response = await fetch('replacements.jpg', { method: 'HEAD' });
                 if (response.ok) {
                     const lastModified = response.headers.get('Last-Modified');
                     if (lastModified) {
                         const serverDate = new Date(lastModified).getTime();
                         const localDate = parseInt(localStorage.getItem('lastViewedReplacements') || '0');
-
-                        // Если файл обновлен позже, чем мы его смотрели - показываем плашку
                         if (serverDate > localDate) {
                             replacementNotice.classList.remove('hidden');
                         }
                     }
                 }
-            } catch (e) {
-                console.log("Не удалось проверить замены", e);
-            }
+            } catch (e) { console.log("Ошибка проверки замен", e); }
         }
 
-        // Вызываем эту функцию при открытии вкладки "Замены"
         window.markReplacementsAsViewed = function() {
-            // Запоминаем текущее время
             localStorage.setItem('lastViewedReplacements', Date.now().toString());
             replacementNotice.classList.add('hidden');
         };
 
-        // --- АВТОМАТИЧЕСКАЯ ЗАГРУЗКА EXCEL ---
         async function loadScheduleFromExcel() {
             try {
                 const response = await fetch('Расписание для бот.xlsx');
@@ -265,6 +245,7 @@
                 initGroups();
             } catch (error) {
                 console.error("Ошибка загрузки Excel:", error);
+                groupSelect.innerHTML = '<option value="">Ошибка загрузки</option>';
             }
         }
 
@@ -273,11 +254,12 @@
             let currentDay = null;
             let groupsMap = {};
             
+            // Ищем строку с названиями групп
             for (let i = 0; i < rows.length; i++) {
-                if (rows[i] && rows[i].includes('1Б')) {
+                if (rows[i] && rows[i].some(cell => String(cell).includes('1Б') || String(cell).includes('1А'))) {
                     for (let j = 0; j < rows[i].length; j++) {
                         let cell = rows[i][j];
-                        if (cell && typeof cell === 'string' && cell.trim().length > 0) {
+                        if (cell && typeof cell === 'string' && cell.trim().length > 0 && !cell.includes('ПОНЕДЕЛЬНИК')) {
                             groupsMap[j] = cell.trim();
                         }
                     }
@@ -319,7 +301,6 @@
             }
         }
 
-        // --- ОСТАЛЬНАЯ ЛОГИКА ---
         window.loginTeacher = function() {
             const code = accessCodeInput.value.trim().toUpperCase();
             if (teacherCodes[code]) {
@@ -373,8 +354,6 @@
                 document.getElementById('replacementsBlock').classList.remove('hidden');
                 daysGrid.classList.add('hidden');
                 bellsBtn.classList.add('hidden');
-                
-                // При переходе на вкладку замен скрываем уведомление
                 markReplacementsAsViewed();
 
                 imageContainer.innerHTML = `
@@ -384,13 +363,22 @@
             }
         };
 
+        // ИСПРАВЛЕННАЯ ФУНКЦИЯ ИНИЦИАЛИЗАЦИИ ГРУПП
         function initGroups() {
             const groups = new Set();
             for (const day in scheduleData) {
-                for (const group in scheduleData[day]) { groups.add(group); }
+                for (const group in scheduleData[day]) { 
+                    groups.add(group); 
+                }
             }
             
             const savedGroup = localStorage.getItem('savedGroup') || "";
+            
+            if (groups.size === 0) {
+                groupSelect.innerHTML = '<option value="">Группы не найдены</option>';
+                return;
+            }
+
             groupSelect.innerHTML = '<option value="">Выберите группу</option>';
             
             Array.from(groups).sort().forEach(group => {
@@ -541,7 +529,7 @@
         // Запуск
         renderDaysGrid();
         loadScheduleFromExcel();
-        checkReplacementsUpdate(); // Проверяем, не обновились ли замены
+        checkReplacementsUpdate();
         if (currentTeacherName) checkAuthState();
     </script>
 </body>
