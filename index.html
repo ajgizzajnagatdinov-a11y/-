@@ -195,14 +195,13 @@
         </div>
     </div>
 
-    <!-- Подключение файлов -->
     <script src="auth.js"></script>
     <script src="students/auth.js"></script>
 
     <script>
         try { if (window.WebApp) window.WebApp.ready(); } catch (e) {}
 
-        let scheduleData = {}; // Данные будут загружаться из Excel
+        let scheduleData = {}; 
         let currentMode = 'student';
         let currentTeacherName = localStorage.getItem('teacherName') || "";
         let currentStudentGroup = localStorage.getItem('studentGroup') || "";
@@ -244,9 +243,12 @@
         // --- ЗАГРУЗКА ИЗ EXCEL ---
         async function loadScheduleFromExcel() {
             try {
-                // ⚠️ Убедитесь, что файл называется именно schedule.xlsx и лежит в корне!
+                // ВАЖНО: Проверьте, что файл называется именно schedule.xlsx!
                 const response = await fetch('schedule.xlsx'); 
-                if (!response.ok) throw new Error("Файл не найден");
+                
+                if (!response.ok) {
+                    throw new Error(`Файл не найден (Статус: ${response.status})`);
+                }
                 
                 const arrayBuffer = await response.arrayBuffer();
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' });
@@ -254,10 +256,10 @@
                 const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
                 parseExcelRows(rows);
-                initGroups(); // Обновляем список групп
+                initGroups();
             } catch (error) {
-                console.error("Ошибка загрузки:", error);
-                alert("Не удалось загрузить расписание. Проверьте, что файл schedule.xlsx загружен на GitHub.");
+                console.error("Ошибка:", error);
+                alert("Ошибка загрузки Excel: " + error.message + "\n\nПроверьте, что файл называется schedule.xlsx и лежит в корне репозитория.");
             }
         }
 
@@ -268,19 +270,28 @@
                 const row = rows[i];
                 if (!row || row.length < 4) continue;
 
-                const day = String(row[0]).trim().toUpperCase();
+                const dayRaw = String(row[0]).trim().toUpperCase();
                 const group = String(row[1]).trim();
                 const pair = parseInt(row[2]);
                 const subject = row[3] ? String(row[3]).trim() : '';
                 const room = row[4] ? String(row[4]).trim() : '';
                 const teacher = row[5] ? String(row[5]).trim() : '';
 
-                if (!day || !group || isNaN(pair) || !subject || subject === '------') continue;
+                // Приводим день к ключу (например, "ПОНЕДЕЛЬНИК")
+                let dayKey = null;
+                for (const d of daysOfWeek) {
+                    if (dayRaw.includes(d.key.substring(0, 3))) { // Ищем по первым 3 буквам
+                        dayKey = d.key;
+                        break;
+                    }
+                }
 
-                if (!scheduleData[day]) scheduleData[day] = {};
-                if (!scheduleData[day][group]) scheduleData[day][group] = [];
+                if (!dayKey || !group || isNaN(pair) || !subject || subject === '------') continue;
 
-                scheduleData[day][group].push({
+                if (!scheduleData[dayKey]) scheduleData[dayKey] = {};
+                if (!scheduleData[dayKey][group]) scheduleData[dayKey][group] = [];
+
+                scheduleData[dayKey][group].push({
                     time: pair,
                     subject: subject,
                     room: room,
@@ -312,7 +323,7 @@
         // --- АВТОРИЗАЦИЯ СТУДЕНТОВ ---
         window.loginStudent = function() {
             const login = studentCodeInput.value.trim().toUpperCase();
-            if (studentCodes[login]) {
+            if (typeof studentCodes !== 'undefined' && studentCodes[login]) {
                 currentStudentGroup = studentCodes[login];
                 localStorage.setItem('studentGroup', currentStudentGroup);
                 checkStudentAuthState();
@@ -343,7 +354,7 @@
         // --- АВТОРИЗАЦИЯ УЧИТЕЛЕЙ ---
         window.loginTeacher = function() {
             const code = accessCodeInput.value.trim().toUpperCase();
-            if (teacherCodes[code]) {
+            if (typeof teacherCodes !== 'undefined' && teacherCodes[code]) {
                 currentTeacherName = teacherCodes[code];
                 localStorage.setItem('teacherName', currentTeacherName);
                 checkAuthState();
@@ -547,6 +558,14 @@
             `;
 
             const dayData = scheduleData[dayKey];
+            
+            // Если на этот день вообще нет данных
+            if (!dayData) {
+                html += '<p style="text-align:center; color:gray; margin-top:30px;">В этот день занятий нет.</p>';
+                scheduleContent.innerHTML = html;
+                return;
+            }
+
             let lessonsToShow = [];
 
             if (selected === "Диспетчер" || selected === "Зам. директора по УР") {
@@ -663,4 +682,18 @@
             mainScreen.style.display = 'block';
         }
 
-        bellsBtn.addEventListener('click', () => bellsModal.classList.add
+        bellsBtn.addEventListener('click', () => bellsModal.classList.add('active'));
+        closeModal.addEventListener('click', () => bellsModal.classList.remove('active'));
+        bellsModal.addEventListener('click', (e) => { if (e.target === bellsModal) bellsModal.classList.remove('active'); });
+
+        // Запуск
+        renderDaysGrid();
+        loadScheduleFromExcel(); // Загружаем расписание из Excel
+        checkReplacementsUpdate();
+        
+        if (currentTeacherName) checkAuthState();
+        if (currentStudentGroup) checkStudentAuthState();
+        updateGreeting();
+    </script>
+</body>
+</html>
