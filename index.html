@@ -299,6 +299,27 @@
                 });
             }
         }
+                // --- ЗАПОЛНЕНИЕ СПИСКА ГРУПП ---
+        function initGroups() {
+            const groups = new Set();
+            for (const day in scheduleData) {
+                for (const group in scheduleData[day]) {
+                    groups.add(group);
+                }
+            }
+            
+            // Если на странице есть выпадающий список для админа — заполняем его
+            const adminGroupSelect = document.getElementById('adminGroupSelect');
+            if (adminGroupSelect) {
+                adminGroupSelect.innerHTML = '<option value="">Показать все группы</option>';
+                Array.from(groups).sort().forEach(group => {
+                    const option = document.createElement('option');
+                    option.value = group;
+                    option.textContent = group;
+                    adminGroupSelect.appendChild(option);
+                });
+            }
+        }
 
         // --- ПРИВЕТСТВИЕ ---
         function updateGreeting() {
