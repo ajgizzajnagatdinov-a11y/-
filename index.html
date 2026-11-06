@@ -142,7 +142,7 @@
                         </select>
                     </div>
 
-                    <!-- Выбор группы (для зама по УР) -->
+                    <!-- Выбор группы -->
                     <div id="adminGroupSelector" class="hidden selector" style="margin-top: 10px;">
                         <select id="adminGroupSelect">
                             <option value="">Показать все группы</option>
@@ -357,7 +357,7 @@
 
             teacherSelect.addEventListener('change', (e) => {
                 currentAdminViewMode = e.target.value === "" ? "all" : "teacher";
-                adminGroupSelect.value = ""; // Сбрасываем выбор группы при выборе препода
+                if (e.target.value !== "") adminGroupSelect.value = ""; // Сбрасываем группу
             });
         }
 
@@ -379,9 +379,7 @@
             });
 
             adminGroupSelect.addEventListener('change', (e) => {
-                if (e.target.value !== "") {
-                    teacherSelect.value = ""; // Сбрасываем выбор препода при выборе группы
-                }
+                if (e.target.value !== "") teacherSelect.value = ""; // Сбрасываем препода
             });
         }
 
@@ -514,36 +512,31 @@
             // ЛОГИКА ДЛЯ АДМИНОВ (Диспетчер и Зам по УР)
             if (selected === "Диспетчер" || selected === "Зам. директора по УР") {
                 const selectedGroup = adminGroupSelect ? adminGroupSelect.value : "";
+                const selectedTeacher = teacherSelect ? teacherSelect.value : "";
                 
                 if (selectedGroup) {
-                    // Если выбран группа
+                    // Если выбран группа — показываем её расписание
                     html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Расписание группы: ${selectedGroup}</p>`;
                     lessonsToShow = dayData[selectedGroup] || [];
-                } else if (currentAdminViewMode === "all" || !currentAdminViewMode) {
-                    // Показываем всё
-                    html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Все пары</p>`;
-                    for (const group in dayData) {
-                        const groupLessons = dayData[group];
-                        if (groupLessons.length > 0) {
-                            html += `<div style="margin-top: 15px; margin-bottom: 5px; font-weight: bold; color: #ffb74d;">Группа: ${group}</div>`;
-                            groupLessons.forEach(lesson => {
-                                html += `
-                                    <div class="lesson-item">
-                                        <div class="lesson-time">${lesson.time}.</div>
-                                        <div class="lesson-info">
-                                            <div class="lesson-subject">${lesson.subject}</div>
-                                            ${lesson.room ? `<div class="lesson-room">каб. ${lesson.room}</div>` : ''}
-                                            ${lesson.teacher ? `<div class="lesson-teacher">${lesson.teacher}</div>` : ''}
-                                        </div>
+                    
+                    if (lessonsToShow.length > 0) {
+                        lessonsToShow.forEach(lesson => {
+                            html += `
+                                <div class="lesson-item">
+                                    <div class="lesson-time">${lesson.time}.</div>
+                                    <div class="lesson-info">
+                                        <div class="lesson-subject">${lesson.subject}</div>
+                                        ${lesson.room ? `<div class="lesson-room">каб. ${lesson.room}</div>` : ''}
+                                        ${lesson.teacher ? `<div class="lesson-teacher">${lesson.teacher}</div>` : ''}
                                     </div>
-                                `;
-                            });
-                        }
+                                </div>
+                            `;
+                        });
+                    } else {
+                        html += '<p style="text-align:center; color:gray; margin-top:30px;">В этот день у группы занятий нет.</p>';
                     }
-                    if (html.indexOf('Группа:') === -1) { html += '<p style="text-align:center; color:gray; margin-top:30px;">В этот день занятий нет.</p>'; }
-                } else {
-                    // Показываем пары выбранного препода
-                    const selectedTeacher = teacherSelect.value;
+                } else if (selectedTeacher) {
+                    // Если выбран преподаватель — показываем его пары
                     html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Пары: ${selectedTeacher}</p>`;
                     for (const group in dayData) {
                         const groupLessons = dayData[group];
@@ -571,6 +564,28 @@
                     } else {
                         html += '<p style="text-align:center; color:gray; margin-top:30px;">У этого преподавателя в этот день занятий нет.</p>';
                     }
+                } else {
+                    // Если ничего не выбрано — показываем всё
+                    html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Все пары</p>`;
+                    for (const group in dayData) {
+                        const groupLessons = dayData[group];
+                        if (groupLessons.length > 0) {
+                            html += `<div style="margin-top: 15px; margin-bottom: 5px; font-weight: bold; color: #ffb74d;">Группа: ${group}</div>`;
+                            groupLessons.forEach(lesson => {
+                                html += `
+                                    <div class="lesson-item">
+                                        <div class="lesson-time">${lesson.time}.</div>
+                                        <div class="lesson-info">
+                                            <div class="lesson-subject">${lesson.subject}</div>
+                                            ${lesson.room ? `<div class="lesson-room">каб. ${lesson.room}</div>` : ''}
+                                            ${lesson.teacher ? `<div class="lesson-teacher">${lesson.teacher}</div>` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        }
+                    }
+                    if (html.indexOf('Группа:') === -1) { html += '<p style="text-align:center; color:gray; margin-top:30px;">В этот день занятий нет.</p>'; }
                 }
             } else {
                 // ЛОГИКА ДЛЯ СТУДЕНТОВ И ОБЫЧНЫХ ПРЕПОДАВАТЕЛЕЙ
