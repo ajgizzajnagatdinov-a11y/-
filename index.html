@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Расписание</title>
     <script src="https://st.max.ru/js/max-web-app.js"></script>
+    <!-- Библиотека для чтения Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
             --bg-color: #1a1c23; --card-bg: #262933; --card-hover: #2d3341;
@@ -112,7 +114,6 @@
                 <div class="mode-btn" id="btnReplacements" onclick="switchMode('replacements')">Замены</div>
             </div>
 
-            <!-- Блок для студентов -->
             <div id="studentBlock">
                 <div id="studentAuthForm" class="selector">
                     <input type="text" id="studentCode" placeholder="Введите вашу фамилию">
@@ -124,7 +125,6 @@
                 </div>
             </div>
 
-            <!-- Блок для преподавателей и админов -->
             <div id="teacherBlock" class="hidden">
                 <div id="authForm">
                     <div class="selector">
@@ -135,14 +135,12 @@
                 <div id="teacherProfile" class="hidden">
                     <p style="text-align: center; color: var(--text-muted); margin-bottom: 10px;">Вы вошли как: <strong id="teacherName" style="color: white;"></strong></p>
                     
-                    <!-- Выбор преподавателя -->
                     <div id="adminSelector" class="hidden selector" style="margin-top: 15px;">
                         <select id="teacherSelect">
                             <option value="">Показать всех преподавателей</option>
                         </select>
                     </div>
 
-                    <!-- Выбор группы -->
                     <div id="adminGroupSelector" class="hidden selector" style="margin-top: 10px;">
                         <select id="adminGroupSelect">
                             <option value="">Показать все группы</option>
@@ -153,7 +151,6 @@
                 </div>
             </div>
 
-            <!-- Блок для замен -->
             <div id="replacementsBlock" class="hidden">
                 <div class="replacement-image-container" id="imageContainer"></div>
             </div>
@@ -169,7 +166,6 @@
         <div id="schedule-content"></div>
     </div>
 
-    <!-- Модальное окно звонков -->
     <div class="modal-overlay" id="bellsModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -200,13 +196,13 @@
     </div>
 
     <!-- Подключение файлов -->
-    <script src="data.js"></script>
     <script src="auth.js"></script>
     <script src="students/auth.js"></script>
 
     <script>
         try { if (window.WebApp) window.WebApp.ready(); } catch (e) {}
 
+        let scheduleData = {}; // Данные будут загружаться из Excel
         let currentMode = 'student';
         let currentTeacherName = localStorage.getItem('teacherName') || "";
         let currentStudentGroup = localStorage.getItem('studentGroup') || "";
@@ -245,6 +241,54 @@
             { name: 'Суббота', index: 6, key: 'СУББОТА' }
         ];
 
+        // --- ЗАГРУЗКА ИЗ EXCEL ---
+        async function loadScheduleFromExcel() {
+            try {
+                // ⚠️ Убедитесь, что файл называется именно schedule.xlsx и лежит в корне!
+                const response = await fetch('schedule.xlsx'); 
+                if (!response.ok) throw new Error("Файл не найден");
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                parseExcelRows(rows);
+                initGroups(); // Обновляем список групп
+            } catch (error) {
+                console.error("Ошибка загрузки:", error);
+                alert("Не удалось загрузить расписание. Проверьте, что файл schedule.xlsx загружен на GitHub.");
+            }
+        }
+
+        function parseExcelRows(rows) {
+            scheduleData = {};
+            // Пропускаем первую строку (заголовки)
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                if (!row || row.length < 4) continue;
+
+                const day = String(row[0]).trim().toUpperCase();
+                const group = String(row[1]).trim();
+                const pair = parseInt(row[2]);
+                const subject = row[3] ? String(row[3]).trim() : '';
+                const room = row[4] ? String(row[4]).trim() : '';
+                const teacher = row[5] ? String(row[5]).trim() : '';
+
+                if (!day || !group || isNaN(pair) || !subject || subject === '------') continue;
+
+                if (!scheduleData[day]) scheduleData[day] = {};
+                if (!scheduleData[day][group]) scheduleData[day][group] = [];
+
+                scheduleData[day][group].push({
+                    time: pair,
+                    subject: subject,
+                    room: room,
+                    teacher: teacher
+                });
+            }
+        }
+
         // --- ПРИВЕТСТВИЕ ---
         function updateGreeting() {
             const greetingElement = document.getElementById('greeting');
@@ -265,7 +309,7 @@
             }
         }
 
-        // Авторизация студентов
+        // --- АВТОРИЗАЦИЯ СТУДЕНТОВ ---
         window.loginStudent = function() {
             const login = studentCodeInput.value.trim().toUpperCase();
             if (studentCodes[login]) {
@@ -273,7 +317,7 @@
                 localStorage.setItem('studentGroup', currentStudentGroup);
                 checkStudentAuthState();
             } else {
-                alert("Фамилия не найдена. Введите фамилию русскими буквами. Если вы однофамилец, добавьте инициал (например, ИВАНОВ_А).");
+                alert("Фамилия не найдена.");
             }
         };
 
@@ -296,7 +340,7 @@
             checkStudentAuthState();
         };
 
-        // Авторизация преподавателей и админов
+        // --- АВТОРИЗАЦИЯ УЧИТЕЛЕЙ ---
         window.loginTeacher = function() {
             const code = accessCodeInput.value.trim().toUpperCase();
             if (teacherCodes[code]) {
@@ -312,7 +356,6 @@
                 teacherProfile.classList.remove('hidden');
                 teacherNameDisplay.textContent = currentTeacherName;
                 
-                // Если это Диспетчер или Зам по УР — показываем списки
                 if (currentTeacherName === "Диспетчер" || currentTeacherName === "Зам. директора по УР") {
                     adminSelector.classList.remove('hidden');
                     adminGroupSelector.classList.remove('hidden');
@@ -331,7 +374,6 @@
             updateGreeting();
         }
 
-        // Заполняем список преподавателей
         function populateTeacherSelect() {
             const teachers = new Set();
             for (const day in scheduleData) {
@@ -357,11 +399,10 @@
 
             teacherSelect.addEventListener('change', (e) => {
                 currentAdminViewMode = e.target.value === "" ? "all" : "teacher";
-                if (e.target.value !== "") adminGroupSelect.value = ""; // Сбрасываем группу
+                if (e.target.value !== "") adminGroupSelect.value = "";
             });
         }
 
-        // Заполняем список групп
         function populateGroupSelect() {
             const groups = new Set();
             for (const day in scheduleData) {
@@ -379,7 +420,7 @@
             });
 
             adminGroupSelect.addEventListener('change', (e) => {
-                if (e.target.value !== "") teacherSelect.value = ""; // Сбрасываем препода
+                if (e.target.value !== "") teacherSelect.value = "";
             });
         }
 
@@ -393,7 +434,6 @@
             checkAuthState();
         };
 
-        // Проверка обновлений замен
         async function checkReplacementsUpdate() {
             try {
                 const response = await fetch('replacements.jpg', { method: 'HEAD' });
@@ -509,16 +549,13 @@
             const dayData = scheduleData[dayKey];
             let lessonsToShow = [];
 
-            // ЛОГИКА ДЛЯ АДМИНОВ (Диспетчер и Зам по УР)
             if (selected === "Диспетчер" || selected === "Зам. директора по УР") {
                 const selectedGroup = adminGroupSelect ? adminGroupSelect.value : "";
                 const selectedTeacher = teacherSelect ? teacherSelect.value : "";
                 
                 if (selectedGroup) {
-                    // Если выбран группа — показываем её расписание
                     html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Расписание группы: ${selectedGroup}</p>`;
                     lessonsToShow = dayData[selectedGroup] || [];
-                    
                     if (lessonsToShow.length > 0) {
                         lessonsToShow.forEach(lesson => {
                             html += `
@@ -536,7 +573,6 @@
                         html += '<p style="text-align:center; color:gray; margin-top:30px;">В этот день у группы занятий нет.</p>';
                     }
                 } else if (selectedTeacher) {
-                    // Если выбран преподаватель — показываем его пары
                     html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Пары: ${selectedTeacher}</p>`;
                     for (const group in dayData) {
                         const groupLessons = dayData[group];
@@ -547,7 +583,6 @@
                         });
                     }
                     lessonsToShow.sort((a, b) => a.time - b.time);
-
                     if (lessonsToShow.length > 0) {
                         lessonsToShow.forEach(lesson => {
                             html += `
@@ -565,7 +600,6 @@
                         html += '<p style="text-align:center; color:gray; margin-top:30px;">У этого преподавателя в этот день занятий нет.</p>';
                     }
                 } else {
-                    // Если ничего не выбрано — показываем всё
                     html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Все пары</p>`;
                     for (const group in dayData) {
                         const groupLessons = dayData[group];
@@ -588,7 +622,6 @@
                     if (html.indexOf('Группа:') === -1) { html += '<p style="text-align:center; color:gray; margin-top:30px;">В этот день занятий нет.</p>'; }
                 }
             } else {
-                // ЛОГИКА ДЛЯ СТУДЕНТОВ И ОБЫЧНЫХ ПРЕПОДАВАТЕЛЕЙ
                 if (currentMode === 'student') {
                     lessonsToShow = dayData[selected] || [];
                 } else {
@@ -630,16 +663,4 @@
             mainScreen.style.display = 'block';
         }
 
-        bellsBtn.addEventListener('click', () => bellsModal.classList.add('active'));
-        closeModal.addEventListener('click', () => bellsModal.classList.remove('active'));
-        bellsModal.addEventListener('click', (e) => { if (e.target === bellsModal) bellsModal.classList.remove('active'); });
-
-        // Запуск
-        renderDaysGrid();
-        checkStudentAuthState();
-        checkAuthState();
-        checkReplacementsUpdate();
-        updateGreeting();
-    </script>
-</body>
-</html>
+        bellsBtn.addEventListener('click', () => bellsModal.classList.add
