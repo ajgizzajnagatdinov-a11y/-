@@ -124,7 +124,7 @@
                 </div>
             </div>
 
-            <!-- Блок для преподавателей -->
+            <!-- Блок для преподавателей и админов -->
             <div id="teacherBlock" class="hidden">
                 <div id="authForm">
                     <div class="selector">
@@ -135,9 +135,17 @@
                 <div id="teacherProfile" class="hidden">
                     <p style="text-align: center; color: var(--text-muted); margin-bottom: 10px;">Вы вошли как: <strong id="teacherName" style="color: white;"></strong></p>
                     
+                    <!-- Выбор преподавателя -->
                     <div id="adminSelector" class="hidden selector" style="margin-top: 15px;">
                         <select id="teacherSelect">
-                            <option value="">Выберите преподавателя</option>
+                            <option value="">Показать всех преподавателей</option>
+                        </select>
+                    </div>
+
+                    <!-- Выбор группы (для зама по УР) -->
+                    <div id="adminGroupSelector" class="hidden selector" style="margin-top: 10px;">
+                        <select id="adminGroupSelect">
+                            <option value="">Показать все группы</option>
                         </select>
                     </div>
 
@@ -191,7 +199,7 @@
         </div>
     </div>
 
-    <!-- Подключение файлов с данными -->
+    <!-- Подключение файлов -->
     <script src="data.js"></script>
     <script src="auth.js"></script>
     <script src="students/auth.js"></script>
@@ -205,7 +213,9 @@
         let currentAdminViewMode = "all";
         
         const teacherSelect = document.getElementById('teacherSelect');
+        const adminGroupSelect = document.getElementById('adminGroupSelect');
         const adminSelector = document.getElementById('adminSelector');
+        const adminGroupSelector = document.getElementById('adminGroupSelector');
         const daysGrid = document.getElementById('daysGrid');
         const mainScreen = document.getElementById('main-screen');
         const scheduleContent = document.getElementById('schedule-content');
@@ -286,7 +296,7 @@
             checkStudentAuthState();
         };
 
-        // Авторизация преподавателей
+        // Авторизация преподавателей и админов
         window.loginTeacher = function() {
             const code = accessCodeInput.value.trim().toUpperCase();
             if (teacherCodes[code]) {
@@ -302,20 +312,26 @@
                 teacherProfile.classList.remove('hidden');
                 teacherNameDisplay.textContent = currentTeacherName;
                 
-                if (currentTeacherName === "Диспетчер") {
+                // Если это Диспетчер или Зам по УР — показываем списки
+                if (currentTeacherName === "Диспетчер" || currentTeacherName === "Зам. директора по УР") {
                     adminSelector.classList.remove('hidden');
+                    adminGroupSelector.classList.remove('hidden');
                     populateTeacherSelect();
+                    populateGroupSelect();
                 } else {
                     adminSelector.classList.add('hidden');
+                    adminGroupSelector.classList.add('hidden');
                 }
             } else {
                 authForm.classList.remove('hidden');
                 teacherProfile.classList.add('hidden');
                 adminSelector.classList.add('hidden');
+                adminGroupSelector.classList.add('hidden');
             }
             updateGreeting();
         }
 
+        // Заполняем список преподавателей
         function populateTeacherSelect() {
             const teachers = new Set();
             for (const day in scheduleData) {
@@ -331,7 +347,7 @@
                 }
             }
 
-            teacherSelect.innerHTML = '<option value="">Показать всех</option>';
+            teacherSelect.innerHTML = '<option value="">Показать всех преподавателей</option>';
             Array.from(teachers).sort().forEach(name => {
                 const option = document.createElement('option');
                 option.value = name;
@@ -341,6 +357,31 @@
 
             teacherSelect.addEventListener('change', (e) => {
                 currentAdminViewMode = e.target.value === "" ? "all" : "teacher";
+                adminGroupSelect.value = ""; // Сбрасываем выбор группы при выборе препода
+            });
+        }
+
+        // Заполняем список групп
+        function populateGroupSelect() {
+            const groups = new Set();
+            for (const day in scheduleData) {
+                for (const group in scheduleData[day]) {
+                    groups.add(group);
+                }
+            }
+
+            adminGroupSelect.innerHTML = '<option value="">Показать все группы</option>';
+            Array.from(groups).sort().forEach(group => {
+                const option = document.createElement('option');
+                option.value = group;
+                option.textContent = group;
+                adminGroupSelect.appendChild(option);
+            });
+
+            adminGroupSelect.addEventListener('change', (e) => {
+                if (e.target.value !== "") {
+                    teacherSelect.value = ""; // Сбрасываем выбор препода при выборе группы
+                }
             });
         }
 
@@ -350,9 +391,11 @@
             accessCodeInput.value = "";
             currentAdminViewMode = "all";
             teacherSelect.value = "";
+            adminGroupSelect.value = "";
             checkAuthState();
         };
 
+        // Проверка обновлений замен
         async function checkReplacementsUpdate() {
             try {
                 const response = await fetch('replacements.jpg', { method: 'HEAD' });
@@ -468,8 +511,16 @@
             const dayData = scheduleData[dayKey];
             let lessonsToShow = [];
 
-            if (selected === "Диспетчер") {
-                if (currentAdminViewMode === "all") {
+            // ЛОГИКА ДЛЯ АДМИНОВ (Диспетчер и Зам по УР)
+            if (selected === "Диспетчер" || selected === "Зам. директора по УР") {
+                const selectedGroup = adminGroupSelect ? adminGroupSelect.value : "";
+                
+                if (selectedGroup) {
+                    // Если выбран группа
+                    html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Расписание группы: ${selectedGroup}</p>`;
+                    lessonsToShow = dayData[selectedGroup] || [];
+                } else if (currentAdminViewMode === "all" || !currentAdminViewMode) {
+                    // Показываем всё
                     html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Все пары</p>`;
                     for (const group in dayData) {
                         const groupLessons = dayData[group];
@@ -491,6 +542,7 @@
                     }
                     if (html.indexOf('Группа:') === -1) { html += '<p style="text-align:center; color:gray; margin-top:30px;">В этот день занятий нет.</p>'; }
                 } else {
+                    // Показываем пары выбранного препода
                     const selectedTeacher = teacherSelect.value;
                     html += `<p style="text-align:center; color:var(--accent); margin-bottom: 15px; font-weight: bold;">Пары: ${selectedTeacher}</p>`;
                     for (const group in dayData) {
@@ -521,6 +573,7 @@
                     }
                 }
             } else {
+                // ЛОГИКА ДЛЯ СТУДЕНТОВ И ОБЫЧНЫХ ПРЕПОДАВАТЕЛЕЙ
                 if (currentMode === 'student') {
                     lessonsToShow = dayData[selected] || [];
                 } else {
