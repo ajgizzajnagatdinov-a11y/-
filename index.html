@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Расписание</title>
     <script src="https://st.max.ru/js/max-web-app.js"></script>
-    <!-- Библиотека для чтения Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
@@ -240,15 +239,10 @@
             { name: 'Суббота', index: 6, key: 'СУББОТА' }
         ];
 
-        // --- ЗАГРУЗКА ИЗ EXCEL ---
         async function loadScheduleFromExcel() {
             try {
-                // ВАЖНО: Проверьте, что файл называется именно schedule.xlsx!
                 const response = await fetch('schedule.xlsx'); 
-                
-                if (!response.ok) {
-                    throw new Error(`Файл не найден (Статус: ${response.status})`);
-                }
+                if (!response.ok) throw new Error("Файл не найден");
                 
                 const arrayBuffer = await response.arrayBuffer();
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' });
@@ -259,13 +253,12 @@
                 initGroups();
             } catch (error) {
                 console.error("Ошибка:", error);
-                alert("Ошибка загрузки Excel: " + error.message + "\n\nПроверьте, что файл называется schedule.xlsx и лежит в корне репозитория.");
+                alert("Ошибка загрузки Excel: " + error.message);
             }
         }
 
         function parseExcelRows(rows) {
             scheduleData = {};
-            // Пропускаем первую строку (заголовки)
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
                 if (!row || row.length < 4) continue;
@@ -277,13 +270,9 @@
                 const room = row[4] ? String(row[4]).trim() : '';
                 const teacher = row[5] ? String(row[5]).trim() : '';
 
-                // Приводим день к ключу (например, "ПОНЕДЕЛЬНИК")
                 let dayKey = null;
                 for (const d of daysOfWeek) {
-                    if (dayRaw.includes(d.key.substring(0, 3))) { // Ищем по первым 3 буквам
-                        dayKey = d.key;
-                        break;
-                    }
+                    if (dayRaw.includes(d.key.substring(0, 3))) { dayKey = d.key; break; }
                 }
 
                 if (!dayKey || !group || isNaN(pair) || !subject || subject === '------') continue;
@@ -291,25 +280,16 @@
                 if (!scheduleData[dayKey]) scheduleData[dayKey] = {};
                 if (!scheduleData[dayKey][group]) scheduleData[dayKey][group] = [];
 
-                scheduleData[dayKey][group].push({
-                    time: pair,
-                    subject: subject,
-                    room: room,
-                    teacher: teacher
-                });
+                scheduleData[dayKey][group].push({ time: pair, subject, room, teacher });
             }
         }
-                // --- ЗАПОЛНЕНИЕ СПИСКА ГРУПП ---
+
         function initGroups() {
             const groups = new Set();
             for (const day in scheduleData) {
-                for (const group in scheduleData[day]) {
-                    groups.add(group);
-                }
+                for (const group in scheduleData[day]) { groups.add(group); }
             }
             
-            // Если на странице есть выпадающий список для админа — заполняем его
-            const adminGroupSelect = document.getElementById('adminGroupSelect');
             if (adminGroupSelect) {
                 adminGroupSelect.innerHTML = '<option value="">Показать все группы</option>';
                 Array.from(groups).sort().forEach(group => {
@@ -321,7 +301,6 @@
             }
         }
 
-        // --- ПРИВЕТСТВИЕ ---
         function updateGreeting() {
             const greetingElement = document.getElementById('greeting');
             const hour = new Date().getHours();
@@ -332,10 +311,9 @@
             else if (hour >= 18 && hour < 23) greeting = "Добрый вечер!";
             else greeting = "Доброй ночи!";
 
-                        if (currentMode === 'student' && currentStudentGroup) {
+            if (currentMode === 'student' && currentStudentGroup) {
                 greetingElement.textContent = `${greeting} Группа ${currentStudentGroup}`;
             } else if (currentMode === 'teacher' && currentTeacherName) {
-                // Проверяем, есть ли двоеточие (если да - берем имя после него)
                 if (currentTeacherName.includes(':')) {
                     const namePart = currentTeacherName.split(':')[1].trim();
                     greetingElement.textContent = `${greeting} ${namePart}`;
@@ -347,7 +325,6 @@
             }
         }
 
-        // --- АВТОРИЗАЦИЯ СТУДЕНТОВ ---
         window.loginStudent = function() {
             const login = studentCodeInput.value.trim().toUpperCase();
             if (typeof studentCodes !== 'undefined' && studentCodes[login]) {
@@ -378,7 +355,6 @@
             checkStudentAuthState();
         };
 
-        // --- АВТОРИЗАЦИЯ УЧИТЕЛЕЙ ---
         window.loginTeacher = function() {
             const code = accessCodeInput.value.trim().toUpperCase();
             if (typeof teacherCodes !== 'undefined' && teacherCodes[code]) {
@@ -388,41 +364,19 @@
             } else { alert("Неверный код."); }
         };
 
-            function checkAuthState() {
+        function checkAuthState() {
             if (currentTeacherName) {
                 authForm.classList.add('hidden');
                 teacherProfile.classList.remove('hidden');
                 
-                // Показываем только "Директор" или "Диспетчер", отсекая имя после двоеточия
                 const displayName = currentTeacherName.split(':')[0].trim();
                 teacherNameDisplay.textContent = displayName;
                 
-                // Проверяем права (админ, зам или директор)
                 const role = currentTeacherName.toLowerCase();
                 if (role.includes('диспетчер') || role.includes('зам. директора') || role.includes('директор')) {
                     adminSelector.classList.remove('hidden');
                     adminGroupSelector.classList.remove('hidden');
                     populateTeacherSelect();
-                    populateGroupSelect();
-                } else {
-                    adminSelector.classList.add('hidden');
-                    adminGroupSelector.classList.add('hidden');
-                }
-            } else {
-                authForm.classList.remove('hidden');
-                teacherProfile.classList.add('hidden');
-                adminSelector.classList.add('hidden');
-                adminGroupSelector.classList.add('hidden');
-            }
-            updateGreeting();
-        }
-                // ... остальной код ...
-                
-               if (currentTeacherName === "Диспетчер" || currentTeacherName === "Зам. директора по УР" || currentTeacherName === "Директор") {
-                    adminSelector.classList.remove('hidden');
-                    adminGroupSelector.classList.remove('hidden');
-                    populateTeacherSelect();
-                    populateGroupSelect();
                 } else {
                     adminSelector.classList.add('hidden');
                     adminGroupSelector.classList.add('hidden');
@@ -462,27 +416,6 @@
             teacherSelect.addEventListener('change', (e) => {
                 currentAdminViewMode = e.target.value === "" ? "all" : "teacher";
                 if (e.target.value !== "") adminGroupSelect.value = "";
-            });
-        }
-
-        function populateGroupSelect() {
-            const groups = new Set();
-            for (const day in scheduleData) {
-                for (const group in scheduleData[day]) {
-                    groups.add(group);
-                }
-            }
-
-            adminGroupSelect.innerHTML = '<option value="">Показать все группы</option>';
-            Array.from(groups).sort().forEach(group => {
-                const option = document.createElement('option');
-                option.value = group;
-                option.textContent = group;
-                adminGroupSelect.appendChild(option);
-            });
-
-            adminGroupSelect.addEventListener('change', (e) => {
-                if (e.target.value !== "") teacherSelect.value = "";
             });
         }
 
@@ -609,8 +542,6 @@
             `;
 
             const dayData = scheduleData[dayKey];
-            
-            // Если на этот день вообще нет данных
             if (!dayData) {
                 html += '<p style="text-align:center; color:gray; margin-top:30px;">В этот день занятий нет.</p>';
                 scheduleContent.innerHTML = html;
@@ -619,7 +550,7 @@
 
             let lessonsToShow = [];
 
-                     // Проверяем, является ли текущий пользователь админом/директором
+            // Проверяем, является ли текущий пользователь админом/директором
             const roleCheck = selected.toLowerCase();
             if (roleCheck.includes('диспетчер') || roleCheck.includes('зам. директора') || roleCheck.includes('директор')) {
                 const selectedGroup = adminGroupSelect ? adminGroupSelect.value : "";
@@ -739,9 +670,8 @@
         closeModal.addEventListener('click', () => bellsModal.classList.remove('active'));
         bellsModal.addEventListener('click', (e) => { if (e.target === bellsModal) bellsModal.classList.remove('active'); });
 
-        // Запуск
         renderDaysGrid();
-        loadScheduleFromExcel(); // Загружаем расписание из Excel
+        loadScheduleFromExcel();
         checkReplacementsUpdate();
         
         if (currentTeacherName) checkAuthState();
