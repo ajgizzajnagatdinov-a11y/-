@@ -277,6 +277,13 @@
     <script>
         try { if (window.WebApp) window.WebApp.ready(); } catch (e) {}
 
+        // --- СПИСОК ВСЕХ КАБИНЕТОВ ---
+        const ALL_COLLEGE_ROOMS = [
+            "1", "2", "4", "5", "7", "8", "9", "10", "11", "13", "14", "15", "16", "18", "20", "21", "22", "23", "24",
+            "биб", "с/з", "ч/з", "ч.з", "а.з"
+            // Добавьте сюда остальные кабинеты, если их нет в этом списке
+        ];
+
         let scheduleData = {}; 
         let currentMode = 'student';
         let currentTeacherName = localStorage.getItem('teacherName') || "";
@@ -496,7 +503,8 @@
             const todayKey = todayObj.key;
             const dayData = scheduleData[todayKey] || {};
 
-            const allRooms = new Set();
+            // Используем список всех кабинетов
+            const allRooms = new Set(ALL_COLLEGE_ROOMS);
             for (const group in dayData) {
                 dayData[group].forEach(lesson => {
                     if (lesson.room && lesson.room !== '---' && lesson.room !== '------') {
