@@ -48,6 +48,7 @@
         .btn-logout { width: 100%; padding: 10px; border-radius: 8px; font-size: 14px; background: transparent; color: var(--text-muted); border: 1px solid var(--text-muted); cursor: pointer; margin-bottom: 15px; }
         .btn-group { width: 100%; padding: 12px; border-radius: 8px; font-size: 16px; background: #4caf50; color: white; border: none; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
         .btn-week { width: 100%; padding: 12px; border-radius: 8px; font-size: 16px; background: #2196f3; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 20px; margin-bottom: 15px; }
+        .btn-rooms { width: 100%; padding: 12px; border-radius: 8px; font-size: 16px; background: #ff9800; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; margin-bottom: 15px; }
 
         .days-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
         .day-card { background-color: var(--card-bg); border: 1px solid #3d4250; border-radius: var(--border-radius); padding: 15px; cursor: pointer; transition: all 0.2s; }
@@ -138,7 +139,6 @@
                 <div id="teacherProfile" class="hidden">
                     <p style="text-align: center; color: var(--text-muted); margin-bottom: 10px;">Вы вошли как: <strong id="teacherName" style="color: white;"></strong></p>
                     
-                    <!-- Одна кнопка "Моя группа" -->
                     <button id="myGroupBtn" class="btn-group hidden" onclick="showCuratorGroups()">Моя группа</button>
 
                     <div id="adminSelector" class="hidden selector" style="margin-top: 15px;">
@@ -152,6 +152,9 @@
                             <option value="">Показать все группы</option>
                         </select>
                     </div>
+
+                    <!-- Кнопка "Кабинеты" (для админов) -->
+                    <button id="roomsBtn" class="btn-rooms hidden" onclick="showRoomsStatus()">Просмотр кабинетов</button>
 
                     <button class="btn-logout" onclick="logoutTeacher()">Выйти из профиля</button>
                 </div>
@@ -172,6 +175,7 @@
         <div id="schedule-content"></div>
     </div>
 
+    <!-- Модальное окно звонков -->
     <div class="modal-overlay" id="bellsModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -319,12 +323,7 @@
             if (currentMode === 'student' && currentStudentGroup) {
                 greetingElement.textContent = `${greeting} Группа ${currentStudentGroup}`;
             } else if (currentMode === 'teacher' && currentTeacherName) {
-                if (currentTeacherName.includes(':')) {
-                    const namePart = currentTeacherName.split(':')[1].trim();
-                    greetingElement.textContent = `${greeting} ${namePart}`;
-                } else {
-                    greetingElement.textContent = `${greeting} ${currentTeacherName}`;
-                }
+                greetingElement.textContent = `${greeting} ${currentTeacherName}`;
             } else {
                 greetingElement.textContent = greeting;
             }
@@ -374,43 +373,24 @@
                 authForm.classList.add('hidden');
                 teacherProfile.classList.remove('hidden');
                 
-                const displayName = currentTeacherName.split(':')[0].split('(')[0].trim();
+                const displayName = currentTeacherName.split(':')[0].trim();
                 teacherNameDisplay.textContent = displayName;
                 
                 const role = currentTeacherName.toLowerCase();
                 const myBtn = document.getElementById('myGroupBtn');
+                const roomsBtn = document.getElementById('roomsBtn');
                 
-                if (role.includes('диспетчер') || role.includes('зам. директора') || role.includes('директор')) {
+                if (role.includes('диспетчер') || role.includes('зам. директора') || role.includes('директор') || role.includes('зам. по вр')) {
                     adminSelector.classList.remove('hidden');
                     adminGroupSelector.classList.remove('hidden');
                     populateTeacherSelect();
                     myBtn.classList.add('hidden');
+                    roomsBtn.classList.remove('hidden'); // Показываем кнопку кабинетов
                 } else {
-                    const curatorGroups = [];
-                    if (scheduleData['ПОНЕДЕЛЬНИК']) {
-                        for (const group in scheduleData['ПОНЕДЕЛЬНИК']) {
-                            const lessons = scheduleData['ПОНЕДЕЛЬНИК'][group];
-                            for (const lesson of lessons) {
-                                if (lesson.subject.includes('РОВ') && lesson.teacher.includes(displayName)) {
-                                    if (!curatorGroups.includes(group)) {
-                                        curatorGroups.push(group);
-                                    }
-                                    break; 
-                                }
-                            }
-                        }
-                    }
-
-                    if (curatorGroups.length > 0) {
-                        adminSelector.classList.add('hidden');
-                        adminGroupSelector.classList.add('hidden');
-                        myBtn.classList.remove('hidden');
-                        myBtn.setAttribute('data-groups', JSON.stringify(curatorGroups)); 
-                    } else {
-                        adminSelector.classList.add('hidden');
-                        adminGroupSelector.classList.add('hidden');
-                        myBtn.classList.add('hidden');
-                    }
+                    adminSelector.classList.add('hidden');
+                    adminGroupSelector.classList.add('hidden');
+                    myBtn.classList.remove('hidden');
+                    roomsBtn.classList.add('hidden'); // Скрываем
                 }
             } else {
                 authForm.classList.remove('hidden');
@@ -418,11 +398,76 @@
                 adminSelector.classList.add('hidden');
                 adminGroupSelector.classList.add('hidden');
                 document.getElementById('myGroupBtn').classList.add('hidden');
+                document.getElementById('roomsBtn').classList.add('hidden');
             }
             updateGreeting();
         }
 
-        // 1. Показ списка групп куратора
+        // --- ПРОВЕРКА ЗАНЯТОСТИ КАБИНЕТОВ ---
+        window.showRoomsStatus = function() {
+            mainScreen.style.display = 'none';
+            scheduleContent.style.display = 'block';
+            
+            // Определяем текущий день
+            const todayIndex = new Date().getDay() === 0 ? 7 : new Date().getDay();
+            const todayObj = daysOfWeek.find(d => d.index === todayIndex);
+            if (!todayObj) {
+                scheduleContent.innerHTML = '<p style="text-align:center; padding:20px;">Сегодня выходной.</p><button class="btn-logout" onclick="goBack()">Назад</button>';
+                return;
+            }
+            
+            const todayKey = todayObj.key;
+            const dayData = scheduleData[todayKey] || {};
+
+            // Собираем все кабинеты
+            const roomsMap = {}; 
+
+            for (const group in dayData) {
+                dayData[group].forEach(lesson => {
+                    const room = lesson.room;
+                    if (room && room !== '---' && room !== '------') {
+                        if (!roomsMap[room]) roomsMap[room] = [];
+                        roomsMap[room].push({
+                            group: group,
+                            pair: lesson.time,
+                            subject: lesson.subject
+                        });
+                    }
+                });
+            }
+
+            const sortedRooms = Object.keys(roomsMap).sort();
+
+            let html = `
+                <div class="schedule-header">
+                    <div class="back-icon" onclick="goBack()">←</div>
+                    <h2 class="schedule-day-title">Занятость кабинетов (${todayObj.name})</h2>
+                </div>
+                <p style="text-align:center; color:gray; margin-bottom: 20px;">Данные по расписанию на сегодня</p>
+            `;
+
+            if (sortedRooms.length === 0) {
+                html += '<p style="text-align:center; color:gray;">Сегодня занятий нет.</p>';
+            } else {
+                sortedRooms.forEach(room => {
+                    html += `<div class="room-block" style="background: #2d3341; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <div style="font-weight: bold; font-size: 18px; color: var(--accent); margin-bottom: 10px;">📍 Кабинет ${room}</div>
+                        <ul style="margin: 0; padding-left: 20px; color: var(--text-main);">`;
+                    
+                    roomsMap[room].forEach(item => {
+                        html += `<li style="margin-bottom: 5px;">
+                            <strong>${item.pair} пара:</strong> ${item.group} (${item.subject})
+                        </li>`;
+                    });
+                    
+                    html += `</ul></div>`;
+                });
+            }
+
+            html += `<button class="btn-logout" onclick="goBack()">Назад</button>`;
+            scheduleContent.innerHTML = html;
+        };
+
         window.showCuratorGroups = function() {
             const btn = document.getElementById('myGroupBtn');
             const groupsRaw = btn.getAttribute('data-groups');
@@ -451,7 +496,6 @@
             scheduleContent.innerHTML = html;
         };
 
-        // 2. Показ сегодняшнего дня для выбранной группы
         window.showTodayForMyGroup = function(group) {
             if (!group) return;
             
@@ -493,13 +537,11 @@
                 html += '<p style="text-align:center; color:gray; margin-top:30px;">На сегодня занятий нет.</p>';
             }
             
-            // 3. Кнопка "Расписание за всю неделю" внизу
             html += `<button class="btn-week" onclick="showFullWeekForMyGroup('${group}')">Расписание за всю неделю</button>`;
             
             scheduleContent.innerHTML = html;
         }
 
-        // 4. Показ всей недели для выбранной группы
         window.showFullWeekForMyGroup = function(group) {
             if (!group) return;
             
@@ -704,7 +746,7 @@
             let lessonsToShow = [];
 
             const roleCheck = selected.toLowerCase();
-            if (roleCheck.includes('диспетчер') || roleCheck.includes('зам. директора') || roleCheck.includes('директор')) {
+            if (roleCheck.includes('диспетчер') || roleCheck.includes('зам. директора') || roleCheck.includes('директор') || roleCheck.includes('зам. по вр')) {
                 const selectedGroup = adminGroupSelect ? adminGroupSelect.value : "";
                 const selectedTeacher = teacherSelect ? teacherSelect.value : "";
                 
@@ -824,7 +866,7 @@
 
         renderDaysGrid();
         loadScheduleFromExcel();
-        checkReplacementsUpdates();
+        checkReplacementsUpdate();
         
         if (currentTeacherName) checkAuthState();
         if (currentStudentGroup) checkStudentAuthState();
