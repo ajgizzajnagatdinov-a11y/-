@@ -332,10 +332,16 @@
             else if (hour >= 18 && hour < 23) greeting = "Добрый вечер!";
             else greeting = "Доброй ночи!";
 
-            if (currentMode === 'student' && currentStudentGroup) {
+                        if (currentMode === 'student' && currentStudentGroup) {
                 greetingElement.textContent = `${greeting} Группа ${currentStudentGroup}`;
             } else if (currentMode === 'teacher' && currentTeacherName) {
-                greetingElement.textContent = `${greeting} ${currentTeacherName}`;
+                // Проверяем, есть ли двоеточие (если да - берем имя после него)
+                if (currentTeacherName.includes(':')) {
+                    const namePart = currentTeacherName.split(':')[1].trim();
+                    greetingElement.textContent = `${greeting} ${namePart}`;
+                } else {
+                    greetingElement.textContent = `${greeting} ${currentTeacherName}`;
+                }
             } else {
                 greetingElement.textContent = greeting;
             }
@@ -382,11 +388,35 @@
             } else { alert("Неверный код."); }
         };
 
-        function checkAuthState() {
+            function checkAuthState() {
             if (currentTeacherName) {
                 authForm.classList.add('hidden');
                 teacherProfile.classList.remove('hidden');
-                teacherNameDisplay.textContent = currentTeacherName;
+                
+                // Показываем только "Директор" или "Диспетчер", отсекая имя после двоеточия
+                const displayName = currentTeacherName.split(':')[0].trim();
+                teacherNameDisplay.textContent = displayName;
+                
+                // Проверяем права (админ, зам или директор)
+                const role = currentTeacherName.toLowerCase();
+                if (role.includes('диспетчер') || role.includes('зам. директора') || role.includes('директор')) {
+                    adminSelector.classList.remove('hidden');
+                    adminGroupSelector.classList.remove('hidden');
+                    populateTeacherSelect();
+                    populateGroupSelect();
+                } else {
+                    adminSelector.classList.add('hidden');
+                    adminGroupSelector.classList.add('hidden');
+                }
+            } else {
+                authForm.classList.remove('hidden');
+                teacherProfile.classList.add('hidden');
+                adminSelector.classList.add('hidden');
+                adminGroupSelector.classList.add('hidden');
+            }
+            updateGreeting();
+        }
+                // ... остальной код ...
                 
                if (currentTeacherName === "Диспетчер" || currentTeacherName === "Зам. директора по УР" || currentTeacherName === "Директор") {
                     adminSelector.classList.remove('hidden');
