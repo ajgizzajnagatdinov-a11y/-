@@ -136,10 +136,7 @@
                     <button class="btn-login" onclick="loginTeacher()">Войти</button>
                 </div>
                 <div id="teacherProfile" class="hidden">
-                    <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px;">
-                        <p style="margin: 0; color: var(--text-muted);">Вы вошли как: <strong id="teacherName" style="color: white;"></strong></p>
-                        <button id="settingsBtn" class="hidden" onclick="openSettingsMenu()" style="background: none; border: 1px solid #3d4250; border-radius: 6px; color: var(--text-muted); cursor: pointer; padding: 2px 8px; font-size: 18px;">&#8942;</button>
-                    </div>
+                    <p style="text-align: center; color: var(--text-muted); margin-bottom: 10px;">Вы вошли как: <strong id="teacherName" style="color: white;"></strong></p>
                     
                     <button id="myGroupBtn" class="btn-group hidden" onclick="showCuratorGroups()">Моя группа</button>
 
@@ -204,45 +201,16 @@
         </div>
     </div>
 
-    <!-- Модальное окно настроек профиля -->
-    <div class="modal-overlay" id="settingsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Настройки профиля</h2>
-                <button class="modal-close" onclick="closeSettingsMenu()">&times;</button>
-            </div>
-            
-            <button id="switchToTeacherBtn" class="btn-group hidden" onclick="showMyPersonalSchedule(); closeSettingsMenu();">
-                Переключиться в режим учителя
-            </button>
-            
-            <button id="switchToAdminBtn" class="btn-week hidden" onclick="switchToAdmin(); closeSettingsMenu();">
-                Вернуться в режим диспетчера
-            </button>
-            
-            <button class="btn-logout" onclick="logoutTeacher(); closeSettingsMenu();">
-                Выйти из профиля
-            </button>
-        </div>
-    </div>
-
     <script src="auth.js"></script>
     <script src="students/auth.js"></script>
 
     <script>
         try { if (window.WebApp) window.WebApp.ready(); } catch (e) {}
 
-        // Словарь синонимов (Имя в auth.js -> Фамилия в Excel)
-        const teacherAliases = {
-            "Айгиз Фаритович": "Зайнагатдинов",
-            "Марат Мансурович": "Ахметгалин", 
-        };
-
         let scheduleData = {}; 
         let currentMode = 'student';
         let currentTeacherName = localStorage.getItem('teacherName') || "";
         let currentStudentGroup = localStorage.getItem('studentGroup') || "";
-        let isViewingAsTeacher = false; // Переключатель режима
         
         const teacherSelect = document.getElementById('teacherSelect');
         const adminGroupSelect = document.getElementById('adminGroupSelect');
@@ -351,12 +319,7 @@
             if (currentMode === 'student' && currentStudentGroup) {
                 greetingElement.textContent = `${greeting} Группа ${currentStudentGroup}`;
             } else if (currentMode === 'teacher' && currentTeacherName) {
-                if (currentTeacherName.includes(':')) {
-                    const namePart = currentTeacherName.split(':')[1].trim();
-                    greetingElement.textContent = `${greeting} ${namePart}`;
-                } else {
-                    greetingElement.textContent = `${greeting} ${currentTeacherName}`;
-                }
+                greetingElement.textContent = `${greeting} ${currentTeacherName}`;
             } else {
                 greetingElement.textContent = greeting;
             }
@@ -405,139 +368,32 @@
             if (currentTeacherName) {
                 authForm.classList.add('hidden');
                 teacherProfile.classList.remove('hidden');
-                document.getElementById('settingsBtn').classList.remove('hidden'); 
                 
-                const displayName = currentTeacherName.split(':')[0].split('(')[0].trim();
+                const displayName = currentTeacherName.split(':')[0].trim();
                 teacherNameDisplay.textContent = displayName;
                 
                 const role = currentTeacherName.toLowerCase();
                 const myBtn = document.getElementById('myGroupBtn');
-                const myPersonalBtn = document.getElementById('switchToTeacherBtn');
-                const adminBtn = document.getElementById('switchToAdminBtn');
-
+                
                 if (role.includes('диспетчер') || role.includes('зам. директора') || role.includes('директор') || role.includes('зам. по вр')) {
-                    // Скрываем админские списки, если мы в режиме учителя
-                    if (isViewingAsTeacher) {
-                        adminSelector.classList.add('hidden');
-                        adminGroupSelector.classList.add('hidden');
-                    } else {
-                        adminSelector.classList.remove('hidden');
-                        adminGroupSelector.classList.remove('hidden');
-                        populateTeacherSelect();
-                    }
-                    
+                    adminSelector.classList.remove('hidden');
+                    adminGroupSelector.classList.remove('hidden');
+                    populateTeacherSelect();
                     myBtn.classList.add('hidden'); 
-                    
-                    if (currentTeacherName.includes(':')) {
-                        myPersonalBtn.classList.remove('hidden');
-                    } else {
-                        myPersonalBtn.classList.add('hidden');
-                    }
-                    
-                    if (isViewingAsTeacher) {
-                        adminBtn.classList.remove('hidden');
-                    } else {
-                        adminBtn.classList.add('hidden');
-                    }
                 } else {
                     adminSelector.classList.add('hidden');
                     adminGroupSelector.classList.add('hidden');
                     myBtn.classList.remove('hidden');
-                    myPersonalBtn.classList.add('hidden');
-                    adminBtn.classList.add('hidden');
                 }
             } else {
                 authForm.classList.remove('hidden');
                 teacherProfile.classList.add('hidden');
-                document.getElementById('settingsBtn').classList.add('hidden');
                 adminSelector.classList.add('hidden');
                 adminGroupSelector.classList.add('hidden');
                 document.getElementById('myGroupBtn').classList.add('hidden');
             }
             updateGreeting();
         }
-
-        window.openSettingsMenu = function() {
-            document.getElementById('settingsModal').classList.add('active');
-        };
-
-        window.closeSettingsMenu = function() {
-            document.getElementById('settingsModal').classList.remove('active');
-        };
-
-        window.showMyPersonalSchedule = function() {
-            isViewingAsTeacher = true;
-            checkAuthState();
-
-            const namePart = currentTeacherName.split(':')[1]?.trim() || currentTeacherName;
-            if (!namePart) return;
-
-            let searchName = namePart;
-            for (const alias in teacherAliases) {
-                if (namePart.includes(alias)) {
-                    searchName = teacherAliases[alias];
-                    break;
-                }
-            }
-
-            const nameWords = searchName.split(' ').filter(w => w.length > 2);
-
-            mainScreen.style.display = 'none';
-            scheduleContent.style.display = 'block';
-            
-            let html = `
-                <div class="schedule-header">
-                    <div class="back-icon" onclick="goBack()">←</div>
-                    <h2 class="schedule-day-title">Мои пары (${namePart}) на неделю</h2>
-                </div>
-            `;
-
-            let hasAnyLessons = false;
-
-            daysOfWeek.forEach(day => {
-                const dayData = scheduleData[day.key];
-                if (dayData) {
-                    let dayLessons = [];
-                    for (const group in dayData) {
-                        dayData[group].forEach(lesson => {
-                            if (lesson.teacher && nameWords.some(word => lesson.teacher.includes(word))) {
-                                dayLessons.push({ ...lesson, group: group });
-                            }
-                        });
-                    }
-                    
-                    if (dayLessons.length > 0) {
-                        hasAnyLessons = true;
-                        html += `<div class="day-title">${day.name}</div>`;
-                        dayLessons.sort((a, b) => a.time - b.time);
-                        
-                        dayLessons.forEach(lesson => {
-                            html += `
-                                <div class="lesson-item">
-                                    <div class="lesson-time">${lesson.time}.</div>
-                                    <div class="lesson-info">
-                                        <div class="lesson-subject">${lesson.subject} (Группа: ${lesson.group})</div>
-                                        ${lesson.room ? `<div class="lesson-room">каб. ${lesson.room}</div>` : ''}
-                                    </div>
-                                </div>
-                            `;
-                        });
-                    }
-                }
-            });
-
-            if (!hasAnyLessons) {
-                html += '<p style="text-align:center; color:gray; margin-top:30px;">У вас нет пар на эту неделю.</p>';
-            }
-
-            scheduleContent.innerHTML = html;
-        };
-
-        window.switchToAdmin = function() {
-            isViewingAsTeacher = false;
-            switchMode('teacher');
-            checkAuthState();
-        };
 
         window.showCuratorGroups = function() {
             const btn = document.getElementById('myGroupBtn');
@@ -690,7 +546,6 @@
             accessCodeInput.value = "";
             teacherSelect.value = "";
             adminGroupSelect.value = "";
-            isViewingAsTeacher = false;
             checkAuthState();
         };
 
