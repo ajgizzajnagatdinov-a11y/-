@@ -408,7 +408,8 @@
                 const myPersonalBtn = document.getElementById('switchToTeacherBtn');
                 const adminBtn = document.getElementById('switchToAdminBtn');
 
-                if (role.includes('диспетчер') || role.includes('зам. директора') || role.includes('директор')) {
+                // ДОБАВИЛИ ЗАМА ПО ВР (ВОСПИТАТЕЛЬНОЙ РАБОТЕ)
+                if (role.includes('диспетчер') || role.includes('зам. директора') || role.includes('директор') || role.includes('зам. по вр')) {
                     adminSelector.classList.remove('hidden');
                     adminGroupSelector.classList.remove('hidden');
                     populateTeacherSelect();
@@ -450,6 +451,9 @@
             const namePart = currentTeacherName.split(':')[1]?.trim() || currentTeacherName;
             if (!namePart) return;
 
+            // Берем только фамилию (первое слово)
+            const lastName = namePart.split(' ')[0];
+
             mainScreen.style.display = 'none';
             scheduleContent.style.display = 'block';
             
@@ -468,7 +472,7 @@
                     let dayLessons = [];
                     for (const group in dayData) {
                         dayData[group].forEach(lesson => {
-                            if (lesson.teacher && lesson.teacher.includes(namePart)) {
+                            if (lesson.teacher && lesson.teacher.includes(lastName)) {
                                 dayLessons.push({ ...lesson, group: group });
                             }
                         });
@@ -783,7 +787,7 @@
             let lessonsToShow = [];
 
             const roleCheck = selected.toLowerCase();
-            if (roleCheck.includes('диспетчер') || roleCheck.includes('зам. директора') || roleCheck.includes('директор')) {
+            if (roleCheck.includes('диспетчер') || roleCheck.includes('зам. директора') || roleCheck.includes('директор') || roleCheck.includes('зам. по вр')) {
                 const selectedGroup = adminGroupSelect ? adminGroupSelect.value : "";
                 const selectedTeacher = teacherSelect ? teacherSelect.value : "";
                 
