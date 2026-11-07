@@ -408,7 +408,6 @@
                 const myPersonalBtn = document.getElementById('switchToTeacherBtn');
                 const adminBtn = document.getElementById('switchToAdminBtn');
 
-                // ДОБАВИЛИ ЗАМА ПО ВР (ВОСПИТАТЕЛЬНОЙ РАБОТЕ)
                 if (role.includes('диспетчер') || role.includes('зам. директора') || role.includes('директор') || role.includes('зам. по вр')) {
                     adminSelector.classList.remove('hidden');
                     adminGroupSelector.classList.remove('hidden');
@@ -451,8 +450,8 @@
             const namePart = currentTeacherName.split(':')[1]?.trim() || currentTeacherName;
             if (!namePart) return;
 
-            // Берем только фамилию (первое слово)
-            const lastName = namePart.split(' ')[0];
+            // Разбиваем имя на слова для гибкого поиска
+            const nameWords = namePart.split(' ').filter(w => w.length > 2);
 
             mainScreen.style.display = 'none';
             scheduleContent.style.display = 'block';
@@ -472,7 +471,8 @@
                     let dayLessons = [];
                     for (const group in dayData) {
                         dayData[group].forEach(lesson => {
-                            if (lesson.teacher && lesson.teacher.includes(lastName)) {
+                            // Ищем совпадение по любому слову из имени
+                            if (lesson.teacher && nameWords.some(word => lesson.teacher.includes(word))) {
                                 dayLessons.push({ ...lesson, group: group });
                             }
                         });
