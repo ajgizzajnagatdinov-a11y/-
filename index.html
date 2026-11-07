@@ -97,6 +97,54 @@
         .bells-table .num { font-weight: bold; color: var(--accent); width: 30px; }
         .bells-table .time { font-family: monospace; font-size: 15px; }
         .bells-section-title { font-size: 14px; color: var(--text-muted); margin: 15px 0 5px 0; text-transform: uppercase; }
+
+        /* Стили для карточек кабинетов */
+        .room-card {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 12px 15px;
+            margin-bottom: 12px;
+            border-left: 4px solid #ff5252;
+        }
+        .room-card.free {
+            border-left: 4px solid #4caf50;
+            opacity: 0.8;
+        }
+        .room-header {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+        .room-lessons {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .room-lesson {
+            font-size: 14px;
+            color: var(--text-main);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .pair-num {
+            font-weight: bold;
+            color: var(--text-muted);
+            min-width: 60px;
+        }
+        .pair-group {
+            font-weight: bold;
+            color: #ffb74d;
+        }
+        .pair-subject {
+            color: var(--text-muted);
+        }
+        .free-text {
+            color: #4caf50;
+            font-size: 14px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -153,7 +201,6 @@
                         </select>
                     </div>
 
-                    <!-- Кнопка "Кабинеты" (для админов) -->
                     <button id="roomsBtn" class="btn-rooms hidden" onclick="showRoomsStatus()">Просмотр кабинетов</button>
 
                     <button class="btn-logout" onclick="logoutTeacher()">Выйти из профиля</button>
@@ -175,7 +222,6 @@
         <div id="schedule-content"></div>
     </div>
 
-    <!-- Модальное окно звонков -->
     <div class="modal-overlay" id="bellsModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -385,12 +431,12 @@
                     adminGroupSelector.classList.remove('hidden');
                     populateTeacherSelect();
                     myBtn.classList.add('hidden');
-                    roomsBtn.classList.remove('hidden'); // Показываем кнопку кабинетов
+                    roomsBtn.classList.remove('hidden');
                 } else {
                     adminSelector.classList.add('hidden');
                     adminGroupSelector.classList.add('hidden');
                     myBtn.classList.remove('hidden');
-                    roomsBtn.classList.add('hidden'); // Скрываем
+                    roomsBtn.classList.add('hidden');
                 }
             } else {
                 authForm.classList.remove('hidden');
@@ -408,11 +454,11 @@
             mainScreen.style.display = 'none';
             scheduleContent.style.display = 'block';
             
-            // Определяем текущий день
             const todayIndex = new Date().getDay() === 0 ? 7 : new Date().getDay();
             const todayObj = daysOfWeek.find(d => d.index === todayIndex);
+            
             if (!todayObj) {
-                scheduleContent.innerHTML = '<p style="text-align:center; padding:20px;">Сегодня выходной.</p><button class="btn-logout" onclick="goBack()">Назад</button>';
+                scheduleContent.innerHTML = '<div class="schedule-header"><div class="back-icon" onclick="goBack()">←</div><h2 class="schedule-day-title">Выходной</h2></div><p style="text-align:center; padding:20px;">Сегодня занятий нет.</p>';
                 return;
             }
             
@@ -420,8 +466,17 @@
             const dayData = scheduleData[todayKey] || {};
 
             // Собираем все кабинеты
-            const roomsMap = {}; 
+            const allRooms = new Set();
+            for (const group in dayData) {
+                dayData[group].forEach(lesson => {
+                    if (lesson.room && lesson.room !== '---' && lesson.room !== '------') {
+                        allRooms.add(lesson.room);
+                    }
+                });
+            }
 
+            // Группируем по кабинетам
+            const roomsMap = {}; 
             for (const group in dayData) {
                 dayData[group].forEach(lesson => {
                     const room = lesson.room;
@@ -430,41 +485,66 @@
                         roomsMap[room].push({
                             group: group,
                             pair: lesson.time,
-                            subject: lesson.subject
+                            subject: lesson.subject,
+                            teacher: lesson.teacher
                         });
                     }
                 });
             }
 
-            const sortedRooms = Object.keys(roomsMap).sort();
+            const sortedRooms = Array.from(allRooms).sort((a, b) => {
+                const numA = parseInt(a);
+                const numB = parseInt(b);
+                if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                return a.localeCompare(b);
+            });
 
             let html = `
                 <div class="schedule-header">
                     <div class="back-icon" onclick="goBack()">←</div>
-                    <h2 class="schedule-day-title">Занятость кабинетов (${todayObj.name})</h2>
+                    <h2 class="schedule-day-title">Кабинеты (${todayObj.name})</h2>
                 </div>
-                <p style="text-align:center; color:gray; margin-bottom: 20px;">Данные по расписанию на сегодня</p>
             `;
 
-            if (sortedRooms.length === 0) {
-                html += '<p style="text-align:center; color:gray;">Сегодня занятий нет.</p>';
-            } else {
-                sortedRooms.forEach(room => {
-                    html += `<div class="room-block" style="background: #2d3341; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                        <div style="font-weight: bold; font-size: 18px; color: var(--accent); margin-bottom: 10px;">📍 Кабинет ${room}</div>
-                        <ul style="margin: 0; padding-left: 20px; color: var(--text-main);">`;
+            const busyRooms = sortedRooms.filter(r => roomsMap[r] && roomsMap[r].length > 0);
+            const freeRooms = sortedRooms.filter(r => !roomsMap[r] || roomsMap[r].length === 0);
+
+            if (busyRooms.length > 0) {
+                html += `<h3 style="color: #ff5252; margin-top: 20px; font-size: 16px; text-transform: uppercase;">🔴 Занятые кабинеты</h3>`;
+                
+                busyRooms.forEach(room => {
+                    html += `<div class="room-card">`;
+                    html += `<div class="room-header">Кабинет ${room}</div>`;
+                    html += `<div class="room-lessons">`;
                     
-                    roomsMap[room].forEach(item => {
-                        html += `<li style="margin-bottom: 5px;">
-                            <strong>${item.pair} пара:</strong> ${item.group} (${item.subject})
-                        </li>`;
+                    roomsMap[room].sort((a, b) => a.pair - b.pair).forEach(item => {
+                        html += `
+                            <div class="room-lesson">
+                                <span class="pair-num">${item.pair} пара:</span>
+                                <span class="pair-group">${item.group}</span>
+                                <span class="pair-subject">${item.subject}</span>
+                            </div>
+                        `;
                     });
                     
-                    html += `</ul></div>`;
+                    html += `</div></div>`;
                 });
             }
 
-            html += `<button class="btn-logout" onclick="goBack()">Назад</button>`;
+            if (freeRooms.length > 0) {
+                html += `<h3 style="color: #4caf50; margin-top: 25px; font-size: 16px; text-transform: uppercase;">🟢 Свободные кабинеты</h3>`;
+                freeRooms.forEach(room => {
+                    html += `<div class="room-card free">
+                        <div class="room-header">Кабинет ${room}</div>
+                        <div class="free-text">Свободен</div>
+                    </div>`;
+                });
+            }
+
+            if (busyRooms.length === 0 && freeRooms.length === 0) {
+                html += '<p style="text-align:center; color:gray; margin-top:30px;">Нет данных о кабинетах на сегодня.</p>';
+            }
+
             scheduleContent.innerHTML = html;
         };
 
