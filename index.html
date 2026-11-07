@@ -488,23 +488,47 @@
             document.getElementById('settingsModal').classList.remove('active');
         };
 
-        // --- ПРОСМОТР КАБИНЕТОВ НА КОНКРЕТНЫЙ ДЕНЬ И ПАРУ ---
+        // --- ПРОСМОТР КАБИНЕТОВ (СЕТКА ДНЕЙ) ---
         window.showRoomsStatus = function() {
             mainScreen.style.display = 'none';
             scheduleContent.style.display = 'block';
             
+            const weekDates = getCurrentWeekDates();
+            const todayIndex = new Date().getDay() === 0 ? 7 : new Date().getDay();
+            
             let html = `
                 <div class="schedule-header">
                     <div class="back-icon" onclick="goBack()">←</div>
-                    <h2 class="schedule-day-title">Кабинеты</h2>
+                    <h2 class="schedule-day-title">Кабинеты (выберите день)</h2>
+                </div>
+                <div class="days-grid" style="margin-top: 20px;">
+            `;
+            
+            daysOfWeek.forEach((day, i) => {
+                const date = weekDates[i];
+                html += `
+                    <div class="day-card ${day.index === todayIndex ? 'is-today' : ''}" onclick="showRoomsForDay('${day.key}', '${day.name}')">
+                        <div class="day-card-title">${day.name}</div>
+                        <div class="day-card-date">${date.day}.${date.month}.${date.year}</div>
+                    </div>
+                `;
+            });
+            
+            html += `</div>`;
+            scheduleContent.innerHTML = html;
+        };
+
+        // Функция показа кабинетов на конкретный день
+        window.showRoomsForDay = function(dayKey, dayName) {
+            let html = `
+                <div class="schedule-header">
+                    <div class="back-icon" onclick="showRoomsStatus()">←</div>
+                    <h2 class="schedule-day-title">Кабинеты (${dayName})</h2>
                 </div>
                 
                 <div class="selector" style="margin-top: 10px;">
-                    <select id="roomDaySelect">
-                        ${daysOfWeek.map(d => `<option value="${d.key}">${d.name}</option>`).join('')}
-                    </select>
-                    
-                    <select id="roomPairSelect">
+                    <select id="roomPairSelect" onchange="renderRoomsListForDay('${dayKey}')">
+                        <option value="all">Занятость за весь день</option>
                         <option value="1">1 пара (09:00 - 09:45)</option>
                         <option value="2">2 пара (09:50 - 10:35)</option>
                         <option value="3">3 пара (10:45 - 11:35)</option>
@@ -514,27 +538,21 @@
                         <option value="7">7 пара (14:45 - 15:30)</option>
                         <option value="8">8 пара (15:35 - 16:20)</option>
                     </select>
-                    
-                    <button class="btn-login" onclick="updateRoomsList()" style="margin-top: 10px;">Показать кабинеты</button>
                 </div>
                 
                 <div id="roomsResult"></div>
             `;
             
             scheduleContent.innerHTML = html;
-            
-            const todayIndex = new Date().getDay() === 0 ? 7 : new Date().getDay();
-            const todayObj = daysOfWeek.find(d => d.index === todayIndex);
-            if (todayObj) {
-                document.getElementById('roomDaySelect').value = todayObj.key;
-            }
-            updateRoomsList();
+            renderRoomsListForDay(dayKey, 'all');
         };
 
-        window.updateRoomsList = function() {
-            const dayKey = document.getElementById('roomDaySelect').value;
-            const pairNum = parseInt(document.getElementById('roomPairSelect').value);
+        // Функция отрисовки списка кабинетов
+        window.renderRoomsListForDay = function(dayKey, pairNum = 'all') {
             const resultDiv = document.getElementById('roomsResult');
+            if (!resultDiv) return;
+
+            const selectedPair = document.getElementById('roomPairSelect')?.value || pairNum;
             
             resultDiv.innerHTML = '<p style="text-align:center; margin-top:20px;">Загрузка...</p>';
             
@@ -544,13 +562,16 @@
 
             for (const group in dayData) {
                 dayData[group].forEach(lesson => {
-                    if (lesson.time === pairNum && lesson.room && lesson.room !== '---' && lesson.room !== '------') {
+                    if ((selectedPair === 'all' || lesson.time === parseInt(selectedPair)) 
+                        && lesson.room && lesson.room !== '---' && lesson.room !== '------') {
                         allRooms.add(lesson.room);
-                        busyRoomsMap[lesson.room] = {
+                        if (!busyRoomsMap[lesson.room]) busyRoomsMap[lesson.room] = [];
+                        busyRoomsMap[lesson.room].push({
+                            pair: lesson.time,
                             group: group,
                             subject: lesson.subject,
                             teacher: lesson.teacher
-                        };
+                        });
                     }
                 });
             }
@@ -568,26 +589,28 @@
             let html = '';
 
             if (busyRooms.length > 0) {
-                html += `<h3 style="color: #ff5252; margin-top: 20px; font-size: 16px; text-transform: uppercase;">🔴 Занятые (${pairNum} пара)</h3>`;
+                html += `<h3 style="color: #ff5252; margin-top: 20px; font-size: 16px; text-transform: uppercase;">🔴 Занятые</h3>`;
                 busyRooms.forEach(room => {
-                    const info = busyRoomsMap[room];
                     html += `<div class="room-card">
                         <div class="room-header">Кабинет ${room}</div>
-                        <div class="room-lessons">
-                            <div class="room-lesson">
-                                <span class="pair-group">${info.group}</span>
-                                <span class="pair-subject">${info.subject}</span>
-                            </div>
-                            ${info.teacher ? `<div class="room-lesson" style="font-size:12px; color: var(--text-muted);">${info.teacher}</div>` : ''}
-                        </div>
-                    </div>`;
+                        <div class="room-lessons">`;
+                    
+                    busyRoomsMap[room].sort((a, b) => a.pair - b.pair).forEach(item => {
+                        html += `<div class="room-lesson">
+                            <span class="pair-num">${item.pair} пара:</span>
+                            <span class="pair-group">${item.group}</span>
+                            <span class="pair-subject">${item.subject}</span>
+                        </div>`;
+                    });
+                    
+                    html += `</div></div>`;
                 });
             } else {
-                html += `<p style="text-align:center; color:gray; margin-top:20px;">На ${pairNum} паре в этот день все кабинеты свободны.</p>`;
+                html += `<p style="text-align:center; color:gray; margin-top:20px;">В этот день все кабинеты свободны.</p>`;
             }
 
             if (freeRooms.length > 0) {
-                html += `<h3 style="color: #4caf50; margin-top: 25px; font-size: 16px; text-transform: uppercase;">🟢 Свободные (${pairNum} пара)</h3>`;
+                html += `<h3 style="color: #4caf50; margin-top: 25px; font-size: 16px; text-transform: uppercase;">🟢 Свободные</h3>`;
                 freeRooms.forEach(room => {
                     html += `<div class="room-card free">
                         <div class="room-header">Кабинет ${room}</div>
