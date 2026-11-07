@@ -46,7 +46,8 @@
 
         .btn-login { width: 100%; padding: 12px; border-radius: 8px; font-size: 16px; background: var(--accent); color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 5px; }
         .btn-logout { width: 100%; padding: 10px; border-radius: 8px; font-size: 14px; background: transparent; color: var(--text-muted); border: 1px solid var(--text-muted); cursor: pointer; margin-bottom: 15px; }
-        .btn-group { width: 100%; padding: 12px; border-radius: 8px; font-size: 16px; background: #4caf50; color: white; border: none; font-weight: bold; cursor: pointer; margin-bottom: 15px; }
+        .btn-group { width: 100%; padding: 12px; border-radius: 8px; font-size: 16px; background: #4caf50; color: white; border: none; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .btn-week { width: 100%; padding: 12px; border-radius: 8px; font-size: 16px; background: #2196f3; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 20px; margin-bottom: 15px; }
 
         .days-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
         .day-card { background-color: var(--card-bg); border: 1px solid #3d4250; border-radius: var(--border-radius); padding: 15px; cursor: pointer; transition: all 0.2s; }
@@ -137,7 +138,8 @@
                 <div id="teacherProfile" class="hidden">
                     <p style="text-align: center; color: var(--text-muted); margin-bottom: 10px;">Вы вошли как: <strong id="teacherName" style="color: white;"></strong></p>
                     
-                    <button id="myGroupBtn" class="btn-group hidden" onclick="showFullWeekForMyGroup()">Показать всю неделю</button>
+                    <!-- Одна кнопка "Моя группа" -->
+                    <button id="myGroupBtn" class="btn-group hidden" onclick="showCuratorGroups()">Моя группа</button>
 
                     <div id="adminSelector" class="hidden selector" style="margin-top: 15px;">
                         <select id="teacherSelect">
@@ -384,34 +386,26 @@
                     populateTeacherSelect();
                     myBtn.classList.add('hidden');
                 } else {
-                    let curatorGroup = null;
+                    const curatorGroups = [];
                     if (scheduleData['ПОНЕДЕЛЬНИК']) {
                         for (const group in scheduleData['ПОНЕДЕЛЬНИК']) {
                             const lessons = scheduleData['ПОНЕДЕЛЬНИК'][group];
                             for (const lesson of lessons) {
                                 if (lesson.subject.includes('РОВ') && lesson.teacher.includes(displayName)) {
-                                    curatorGroup = group;
-                                    break;
+                                    if (!curatorGroups.includes(group)) {
+                                        curatorGroups.push(group);
+                                    }
+                                    break; 
                                 }
                             }
-                            if (curatorGroup) break;
                         }
                     }
 
-                    if (curatorGroup) {
+                    if (curatorGroups.length > 0) {
                         adminSelector.classList.add('hidden');
                         adminGroupSelector.classList.add('hidden');
                         myBtn.classList.remove('hidden');
-                        myBtn.setAttribute('data-group', curatorGroup);
-                        
-                        // АВТОМАТИЧЕСКИЙ ПОКАЗ РАСПИСАНИЯ НА СЕГОДНЯ
-                        const todayIndex = new Date().getDay() === 0 ? 7 : new Date().getDay();
-                        const todayObj = daysOfWeek.find(d => d.index === todayIndex);
-                        const todayName = todayObj ? todayObj.name : 'Сегодня';
-                        
-                        if (todayObj) {
-                             showScheduleForDayByGroup(curatorGroup, `Группа ${curatorGroup} (${todayName})`);
-                        }
+                        myBtn.setAttribute('data-groups', JSON.stringify(curatorGroups)); 
                     } else {
                         adminSelector.classList.add('hidden');
                         adminGroupSelector.classList.add('hidden');
@@ -428,9 +422,85 @@
             updateGreeting();
         }
 
-        window.showFullWeekForMyGroup = function() {
+        // 1. Показ списка групп куратора
+        window.showCuratorGroups = function() {
             const btn = document.getElementById('myGroupBtn');
-            const group = btn.getAttribute('data-group');
+            const groupsRaw = btn.getAttribute('data-groups');
+            if (!groupsRaw) return;
+            
+            const groups = JSON.parse(groupsRaw);
+            
+            mainScreen.style.display = 'none';
+            scheduleContent.style.display = 'block';
+            
+            let html = `
+                <div class="schedule-header">
+                    <div class="back-icon" onclick="goBack()">←</div>
+                    <h2 class="schedule-day-title">Выберите группу</h2>
+                </div>
+            `;
+
+            groups.forEach(group => {
+                html += `
+                    <button class="btn-group" onclick="showTodayForMyGroup('${group}')">
+                        Группа ${group}
+                    </button>
+                `;
+            });
+
+            scheduleContent.innerHTML = html;
+        };
+
+        // 2. Показ сегодняшнего дня для выбранной группы
+        window.showTodayForMyGroup = function(group) {
+            if (!group) return;
+            
+            const todayIndex = new Date().getDay() === 0 ? 7 : new Date().getDay();
+            const todayObj = daysOfWeek.find(d => d.index === todayIndex);
+            const todayName = todayObj ? todayObj.name : 'Сегодня';
+            
+            showScheduleForDayByGroup(group, `Группа ${group} (${todayName})`);
+        };
+
+        function showScheduleForDayByGroup(group, displayTitle) {
+            mainScreen.style.display = 'none';
+            scheduleContent.style.display = 'block';
+            
+            let html = `
+                <div class="schedule-header">
+                    <div class="back-icon" onclick="goBack()">←</div>
+                    <h2 class="schedule-day-title">${displayTitle}</h2>
+                </div>
+            `;
+
+            const todayKey = daysOfWeek.find(d => d.index === (new Date().getDay() === 0 ? 7 : new Date().getDay()))?.key;
+            const dayData = scheduleData[todayKey] ? scheduleData[todayKey][group] : [];
+
+            if (dayData && dayData.length > 0) {
+                dayData.forEach(lesson => {
+                    html += `
+                        <div class="lesson-item">
+                            <div class="lesson-time">${lesson.time}.</div>
+                            <div class="lesson-info">
+                                <div class="lesson-subject">${lesson.subject}</div>
+                                ${lesson.room ? `<div class="lesson-room">каб. ${lesson.room}</div>` : ''}
+                                ${lesson.teacher ? `<div class="lesson-teacher">${lesson.teacher}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                html += '<p style="text-align:center; color:gray; margin-top:30px;">На сегодня занятий нет.</p>';
+            }
+            
+            // 3. Кнопка "Расписание за всю неделю" внизу
+            html += `<button class="btn-week" onclick="showFullWeekForMyGroup('${group}')">Расписание за всю неделю</button>`;
+            
+            scheduleContent.innerHTML = html;
+        }
+
+        // 4. Показ всей недели для выбранной группы
+        window.showFullWeekForMyGroup = function(group) {
             if (!group) return;
             
             mainScreen.style.display = 'none';
@@ -472,40 +542,6 @@
 
             scheduleContent.innerHTML = html;
         };
-
-        function showScheduleForDayByGroup(group, displayTitle) {
-            mainScreen.style.display = 'none';
-            scheduleContent.style.display = 'block';
-            
-            let html = `
-                <div class="schedule-header">
-                    <div class="back-icon" onclick="goBack()">←</div>
-                    <h2 class="schedule-day-title">${displayTitle}</h2>
-                </div>
-            `;
-
-            const todayKey = daysOfWeek.find(d => d.index === (new Date().getDay() === 0 ? 7 : new Date().getDay()))?.key;
-            const dayData = scheduleData[todayKey] ? scheduleData[todayKey][group] : [];
-
-            if (dayData && dayData.length > 0) {
-                dayData.forEach(lesson => {
-                    html += `
-                        <div class="lesson-item">
-                            <div class="lesson-time">${lesson.time}.</div>
-                            <div class="lesson-info">
-                                <div class="lesson-subject">${lesson.subject}</div>
-                                ${lesson.room ? `<div class="lesson-room">каб. ${lesson.room}</div>` : ''}
-                                ${lesson.teacher ? `<div class="lesson-teacher">${lesson.teacher}</div>` : ''}
-                            </div>
-                        </div>
-                    `;
-                });
-            } else {
-                html += '<p style="text-align:center; color:gray; margin-top:30px;">На сегодня занятий нет.</p>';
-            }
-            
-            scheduleContent.innerHTML = html;
-        }
 
         function populateTeacherSelect() {
             const teachers = new Set();
@@ -788,7 +824,7 @@
 
         renderDaysGrid();
         loadScheduleFromExcel();
-        checkReplacementsUpdate();
+        checkReplacementsUpdates();
         
         if (currentTeacherName) checkAuthState();
         if (currentStudentGroup) checkStudentAuthState();
