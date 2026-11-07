@@ -213,11 +213,11 @@
             </div>
             
             <button id="switchToTeacherBtn" class="btn-group hidden" onclick="showMyPersonalSchedule(); closeSettingsMenu();">
-                Мои пары (как учитель)
+                Переключиться в режим учителя
             </button>
             
             <button id="switchToAdminBtn" class="btn-week hidden" onclick="switchToAdmin(); closeSettingsMenu();">
-                Режим диспетчера
+                Вернуться в режим диспетчера
             </button>
             
             <button class="btn-logout" onclick="logoutTeacher(); closeSettingsMenu();">
@@ -236,13 +236,13 @@
         const teacherAliases = {
             "Айгиз Фаритович": "Зайнагатдинов",
             "Марат Мансурович": "Ахметгалин", 
-            // Добавляйте сюда других, если в Excel они записаны иначе
         };
 
         let scheduleData = {}; 
         let currentMode = 'student';
         let currentTeacherName = localStorage.getItem('teacherName') || "";
         let currentStudentGroup = localStorage.getItem('studentGroup') || "";
+        let isViewingAsTeacher = false; // Переключатель режима
         
         const teacherSelect = document.getElementById('teacherSelect');
         const adminGroupSelect = document.getElementById('adminGroupSelect');
@@ -416,9 +416,16 @@
                 const adminBtn = document.getElementById('switchToAdminBtn');
 
                 if (role.includes('диспетчер') || role.includes('зам. директора') || role.includes('директор') || role.includes('зам. по вр')) {
-                    adminSelector.classList.remove('hidden');
-                    adminGroupSelector.classList.remove('hidden');
-                    populateTeacherSelect();
+                    // Скрываем админские списки, если мы в режиме учителя
+                    if (isViewingAsTeacher) {
+                        adminSelector.classList.add('hidden');
+                        adminGroupSelector.classList.add('hidden');
+                    } else {
+                        adminSelector.classList.remove('hidden');
+                        adminGroupSelector.classList.remove('hidden');
+                        populateTeacherSelect();
+                    }
+                    
                     myBtn.classList.add('hidden'); 
                     
                     if (currentTeacherName.includes(':')) {
@@ -426,7 +433,12 @@
                     } else {
                         myPersonalBtn.classList.add('hidden');
                     }
-                    adminBtn.classList.add('hidden'); 
+                    
+                    if (isViewingAsTeacher) {
+                        adminBtn.classList.remove('hidden');
+                    } else {
+                        adminBtn.classList.add('hidden');
+                    }
                 } else {
                     adminSelector.classList.add('hidden');
                     adminGroupSelector.classList.add('hidden');
@@ -454,10 +466,12 @@
         };
 
         window.showMyPersonalSchedule = function() {
+            isViewingAsTeacher = true;
+            checkAuthState();
+
             const namePart = currentTeacherName.split(':')[1]?.trim() || currentTeacherName;
             if (!namePart) return;
 
-            // Ищем, есть ли у этого имени "синоним" из Excel
             let searchName = namePart;
             for (const alias in teacherAliases) {
                 if (namePart.includes(alias)) {
@@ -466,7 +480,6 @@
                 }
             }
 
-            // Разбиваем на слова для гибкого поиска
             const nameWords = searchName.split(' ').filter(w => w.length > 2);
 
             mainScreen.style.display = 'none';
@@ -487,7 +500,6 @@
                     let dayLessons = [];
                     for (const group in dayData) {
                         dayData[group].forEach(lesson => {
-                            // Ищем совпадение по любому слову из имени
                             if (lesson.teacher && nameWords.some(word => lesson.teacher.includes(word))) {
                                 dayLessons.push({ ...lesson, group: group });
                             }
@@ -522,7 +534,9 @@
         };
 
         window.switchToAdmin = function() {
+            isViewingAsTeacher = false;
             switchMode('teacher');
+            checkAuthState();
         };
 
         window.showCuratorGroups = function() {
@@ -676,6 +690,7 @@
             accessCodeInput.value = "";
             teacherSelect.value = "";
             adminGroupSelect.value = "";
+            isViewingAsTeacher = false;
             checkAuthState();
         };
 
