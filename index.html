@@ -232,6 +232,13 @@
     <script>
         try { if (window.WebApp) window.WebApp.ready(); } catch (e) {}
 
+        // Словарь синонимов (Имя в auth.js -> Фамилия в Excel)
+        const teacherAliases = {
+            "Айгиз Фаритович": "Зайнагатдинов",
+            "Марат Мансурович": "Ахметгалин", 
+            // Добавляйте сюда других, если в Excel они записаны иначе
+        };
+
         let scheduleData = {}; 
         let currentMode = 'student';
         let currentTeacherName = localStorage.getItem('teacherName') || "";
@@ -450,8 +457,17 @@
             const namePart = currentTeacherName.split(':')[1]?.trim() || currentTeacherName;
             if (!namePart) return;
 
-            // Разбиваем имя на слова для гибкого поиска
-            const nameWords = namePart.split(' ').filter(w => w.length > 2);
+            // Ищем, есть ли у этого имени "синоним" из Excel
+            let searchName = namePart;
+            for (const alias in teacherAliases) {
+                if (namePart.includes(alias)) {
+                    searchName = teacherAliases[alias];
+                    break;
+                }
+            }
+
+            // Разбиваем на слова для гибкого поиска
+            const nameWords = searchName.split(' ').filter(w => w.length > 2);
 
             mainScreen.style.display = 'none';
             scheduleContent.style.display = 'block';
