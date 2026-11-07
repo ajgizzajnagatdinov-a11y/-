@@ -104,46 +104,21 @@
             border-radius: 10px;
             padding: 12px 15px;
             margin-bottom: 12px;
-            border-left: 4px solid #ff5252;
-        }
-        .room-card.free {
-            border-left: 4px solid #4caf50;
-            opacity: 0.8;
+            border-left: 4px solid var(--accent);
         }
         .room-header {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
-            color: var(--accent);
-            margin-bottom: 8px;
-        }
-        .room-lessons {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .room-lesson {
-            font-size: 14px;
             color: var(--text-main);
             display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
+            justify-content: space-between;
+            margin-bottom: 8px;
         }
-        .pair-num {
+        .free-rooms {
             font-weight: bold;
-            color: var(--text-muted);
-            min-width: 60px;
-        }
-        .pair-group {
-            font-weight: bold;
-            color: #ffb74d;
-        }
-        .pair-subject {
-            color: var(--text-muted);
-        }
-        .free-text {
             color: #4caf50;
-            font-size: 14px;
-            font-style: italic;
+            word-break: break-word;
+            font-size: 16px;
         }
     </style>
 </head>
@@ -518,60 +493,31 @@
             scheduleContent.innerHTML = html;
         };
 
-        // Функция показа кабинетов на конкретный день
+        // Функция показа кабинетов на конкретный день (список свободных по парам)
         window.showRoomsForDay = function(dayKey, dayName) {
-            let html = `
-                <div class="schedule-header">
-                    <div class="back-icon" onclick="showRoomsStatus()">←</div>
-                    <h2 class="schedule-day-title">Кабинеты (${dayName})</h2>
-                </div>
-                
-                <div class="selector" style="margin-top: 10px;">
-                    <select id="roomPairSelect" onchange="renderRoomsListForDay('${dayKey}')">
-                        <option value="all">Занятость за весь день</option>
-                        <option value="1">1 пара (09:00 - 09:45)</option>
-                        <option value="2">2 пара (09:50 - 10:35)</option>
-                        <option value="3">3 пара (10:45 - 11:35)</option>
-                        <option value="4">4 пара (11:35 - 12:20)</option>
-                        <option value="5">5 пара (13:00 - 13:45)</option>
-                        <option value="6">6 пара (13:50 - 14:35)</option>
-                        <option value="7">7 пара (14:45 - 15:30)</option>
-                        <option value="8">8 пара (15:35 - 16:20)</option>
-                    </select>
-                </div>
-                
-                <div id="roomsResult"></div>
-            `;
+            mainScreen.style.display = 'none';
+            scheduleContent.style.display = 'block';
             
-            scheduleContent.innerHTML = html;
-            renderRoomsListForDay(dayKey, 'all');
-        };
-
-        // Функция отрисовки списка кабинетов
-        window.renderRoomsListForDay = function(dayKey, pairNum = 'all') {
-            const resultDiv = document.getElementById('roomsResult');
-            if (!resultDiv) return;
-
-            const selectedPair = document.getElementById('roomPairSelect')?.value || pairNum;
-            
-            resultDiv.innerHTML = '<p style="text-align:center; margin-top:20px;">Загрузка...</p>';
-            
-            const allRooms = new Set(ALL_COLLEGE_ROOMS);
             const dayData = scheduleData[dayKey] || {};
-            const busyRoomsMap = {}; 
-
+            
+            // Собираем все занятые кабинеты по парам
+            const busyByPair = {}; 
+            
             for (const group in dayData) {
                 dayData[group].forEach(lesson => {
-                    if ((selectedPair === 'all' || lesson.time === parseInt(selectedPair)) 
-                        && lesson.room && lesson.room !== '---' && lesson.room !== '------') {
+                    if (lesson.room && lesson.room !== '---' && lesson.room !== '------') {
+                        if (!busyByPair[lesson.time]) busyByPair[lesson.time] = new Set();
+                        busyByPair[lesson.time].add(lesson.room);
+                    }
+                });
+            }
+
+            const allRooms = new Set(ALL_COLLEGE_ROOMS);
+            // Добавляем кабинеты из расписания, если их нет в списке
+            for (const group in dayData) {
+                dayData[group].forEach(lesson => {
+                    if (lesson.room && lesson.room !== '---' && lesson.room !== '------') {
                         allRooms.add(lesson.room);
-                        if (!busyRoomsMap[lesson.room]) busyRoomsMap[lesson.room] = [];
-                        busyRoomsMap[lesson.room].push({
-                            pair: lesson.time,
-                            group: group,
-                            subject: lesson.subject,
-                            teacher: lesson.teacher
-                        });
                     }
                 });
             }
@@ -583,47 +529,41 @@
                 return a.localeCompare(b);
             });
 
-            const busyRooms = sortedRooms.filter(r => busyRoomsMap[r]);
-            const freeRooms = sortedRooms.filter(r => !busyRoomsMap[r]);
+            let html = `
+                <div class="schedule-header">
+                    <div class="back-icon" onclick="showRoomsStatus()">←</div>
+                    <h2 class="schedule-day-title">Свободные кабинеты (${dayName})</h2>
+                </div>
+                <div style="margin-top: 20px;">
+            `;
 
-            let html = '';
+            const pairTimes = [
+                "09:00 - 09:45", "09:50 - 10:35", "10:45 - 11:35", "11:35 - 12:20",
+                "13:00 - 13:45", "13:50 - 14:35", "14:45 - 15:30", "15:35 - 16:20"
+            ];
 
-            if (busyRooms.length > 0) {
-                html += `<h3 style="color: #ff5252; margin-top: 20px; font-size: 16px; text-transform: uppercase;">🔴 Занятые</h3>`;
-                busyRooms.forEach(room => {
-                    html += `<div class="room-card">
-                        <div class="room-header">Кабинет ${room}</div>
-                        <div class="room-lessons">`;
-                    
-                    busyRoomsMap[room].sort((a, b) => a.pair - b.pair).forEach(item => {
-                        html += `<div class="room-lesson">
-                            <span class="pair-num">${item.pair} пара:</span>
-                            <span class="pair-group">${item.group}</span>
-                            <span class="pair-subject">${item.subject}</span>
-                        </div>`;
-                    });
-                    
-                    html += `</div></div>`;
-                });
-            } else {
-                html += `<p style="text-align:center; color:gray; margin-top:20px;">В этот день все кабинеты свободны.</p>`;
+            for (let pair = 1; pair <= 8; pair++) {
+                const busyRoomsForPair = busyByPair[pair] || new Set();
+                const freeRoomsForPair = sortedRooms.filter(room => !busyRoomsForPair.has(room));
+
+                html += `
+                    <div class="room-card">
+                        <div class="room-header">
+                            <span>${pair} пара</span>
+                            <span style="font-size: 12px; color: var(--text-muted);">${pairTimes[pair-1]}</span>
+                        </div>
+                        <div class="free-rooms">
+                            ${freeRoomsForPair.length > 0 
+                                ? freeRoomsForPair.join('; ')
+                                : '<span style="color: var(--text-muted); font-weight: normal; font-style: italic;">Нет свободных кабинетов</span>'
+                            }
+                        </div>
+                    </div>
+                `;
             }
 
-            if (freeRooms.length > 0) {
-                html += `<h3 style="color: #4caf50; margin-top: 25px; font-size: 16px; text-transform: uppercase;">🟢 Свободные</h3>`;
-                freeRooms.forEach(room => {
-                    html += `<div class="room-card free">
-                        <div class="room-header">Кабинет ${room}</div>
-                        <div class="free-text">Свободен</div>
-                    </div>`;
-                });
-            }
-
-            if (busyRooms.length === 0 && freeRooms.length === 0) {
-                html += '<p style="text-align:center; color:gray; margin-top:30px;">Нет данных о кабинетах.</p>';
-            }
-
-            resultDiv.innerHTML = html;
+            html += `</div>`;
+            scheduleContent.innerHTML = html;
         };
 
         window.showCuratorGroups = function() {
