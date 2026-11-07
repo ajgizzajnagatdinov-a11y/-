@@ -46,6 +46,7 @@
 
         .btn-login { width: 100%; padding: 12px; border-radius: 8px; font-size: 16px; background: var(--accent); color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 5px; }
         .btn-logout { width: 100%; padding: 10px; border-radius: 8px; font-size: 14px; background: transparent; color: var(--text-muted); border: 1px solid var(--text-muted); cursor: pointer; margin-bottom: 15px; }
+        .btn-group { width: 100%; padding: 12px; border-radius: 8px; font-size: 16px; background: #4caf50; color: white; border: none; font-weight: bold; cursor: pointer; margin-bottom: 15px; }
 
         .days-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
         .day-card { background-color: var(--card-bg); border: 1px solid #3d4250; border-radius: var(--border-radius); padding: 15px; cursor: pointer; transition: all 0.2s; }
@@ -134,6 +135,9 @@
                 <div id="teacherProfile" class="hidden">
                     <p style="text-align: center; color: var(--text-muted); margin-bottom: 10px;">Вы вошли как: <strong id="teacherName" style="color: white;"></strong></p>
                     
+                    <!-- Кнопка "Моя группа" -->
+                    <button id="myGroupBtn" class="btn-group hidden" onclick="showMyGroup()">Моя группа</button>
+
                     <div id="adminSelector" class="hidden selector" style="margin-top: 15px;">
                         <select id="teacherSelect">
                             <option value="">Показать всех преподавателей</option>
@@ -204,7 +208,6 @@
         let currentMode = 'student';
         let currentTeacherName = localStorage.getItem('teacherName') || "";
         let currentStudentGroup = localStorage.getItem('studentGroup') || "";
-        let currentAdminViewMode = "all";
         
         const teacherSelect = document.getElementById('teacherSelect');
         const adminGroupSelect = document.getElementById('adminGroupSelect');
@@ -243,7 +246,6 @@
             try {
                 const response = await fetch('schedule.xlsx'); 
                 if (!response.ok) throw new Error("Файл не найден");
-                
                 const arrayBuffer = await response.arrayBuffer();
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' });
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -369,25 +371,98 @@
                 authForm.classList.add('hidden');
                 teacherProfile.classList.remove('hidden');
                 
-                const displayName = currentTeacherName.split(':')[0].trim();
+                const displayName = currentTeacherName.split(':')[0].split('(')[0].trim();
                 teacherNameDisplay.textContent = displayName;
                 
                 const role = currentTeacherName.toLowerCase();
+                const myBtn = document.getElementById('myGroupBtn');
+                
                 if (role.includes('диспетчер') || role.includes('зам. директора') || role.includes('директор')) {
                     adminSelector.classList.remove('hidden');
                     adminGroupSelector.classList.remove('hidden');
                     populateTeacherSelect();
+                    myBtn.classList.add('hidden');
                 } else {
-                    adminSelector.classList.add('hidden');
-                    adminGroupSelector.classList.add('hidden');
+                    // Ищем, ведет ли этот учитель РОВ, чтобы дать ему кнопку "Моя группа"
+                    let curatorGroup = null;
+                    if (scheduleData['ПОНЕДЕЛЬНИК']) {
+                        for (const group in scheduleData['ПОНЕДЕЛЬНИК']) {
+                            const lessons = scheduleData['ПОНЕДЕЛЬНИК'][group];
+                            for (const lesson of lessons) {
+                                if (lesson.subject.includes('РОВ') && lesson.teacher.includes(displayName)) {
+                                    curatorGroup = group;
+                                    break;
+                                }
+                            }
+                            if (curatorGroup) break;
+                        }
+                    }
+
+                    if (curatorGroup) {
+                        adminSelector.classList.add('hidden');
+                        adminGroupSelector.classList.add('hidden');
+                        myBtn.classList.remove('hidden');
+                        myBtn.textContent = `Моя группа (${curatorGroup})`;
+                        myBtn.setAttribute('data-group', curatorGroup);
+                    } else {
+                        adminSelector.classList.add('hidden');
+                        adminGroupSelector.classList.add('hidden');
+                        myBtn.classList.add('hidden');
+                    }
                 }
             } else {
                 authForm.classList.remove('hidden');
                 teacherProfile.classList.add('hidden');
                 adminSelector.classList.add('hidden');
                 adminGroupSelector.classList.add('hidden');
+                document.getElementById('myGroupBtn').classList.add('hidden');
             }
             updateGreeting();
+        }
+
+        window.showMyGroup = function() {
+            const btn = document.getElementById('myGroupBtn');
+            const group = btn.getAttribute('data-group');
+            if (!group) return;
+            
+            const todayIndex = new Date().getDay() === 0 ? 7 : new Date().getDay();
+            const todayName = daysOfWeek.find(d => d.index === todayIndex)?.name || 'Сегодня';
+            
+            showScheduleForDayByGroup(group, `Группа ${group} (${todayName})`);
+        };
+
+        function showScheduleForDayByGroup(group, displayTitle) {
+            mainScreen.style.display = 'none';
+            scheduleContent.style.display = 'block';
+            
+            let html = `
+                <div class="schedule-header">
+                    <div class="back-icon" onclick="goBack()">←</div>
+                    <h2 class="schedule-day-title">${displayTitle}</h2>
+                </div>
+            `;
+
+            const todayKey = daysOfWeek.find(d => d.index === (new Date().getDay() === 0 ? 7 : new Date().getDay()))?.key;
+            const dayData = scheduleData[todayKey] ? scheduleData[todayKey][group] : [];
+
+            if (dayData && dayData.length > 0) {
+                dayData.forEach(lesson => {
+                    html += `
+                        <div class="lesson-item">
+                            <div class="lesson-time">${lesson.time}.</div>
+                            <div class="lesson-info">
+                                <div class="lesson-subject">${lesson.subject}</div>
+                                ${lesson.room ? `<div class="lesson-room">каб. ${lesson.room}</div>` : ''}
+                                ${lesson.teacher ? `<div class="lesson-teacher">${lesson.teacher}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                html += '<p style="text-align:center; color:gray; margin-top:30px;">На сегодня занятий нет.</p>';
+            }
+            
+            scheduleContent.innerHTML = html;
         }
 
         function populateTeacherSelect() {
@@ -414,7 +489,6 @@
             });
 
             teacherSelect.addEventListener('change', (e) => {
-                currentAdminViewMode = e.target.value === "" ? "all" : "teacher";
                 if (e.target.value !== "") adminGroupSelect.value = "";
             });
         }
@@ -423,7 +497,6 @@
             currentTeacherName = "";
             localStorage.removeItem('teacherName');
             accessCodeInput.value = "";
-            currentAdminViewMode = "all";
             teacherSelect.value = "";
             adminGroupSelect.value = "";
             checkAuthState();
@@ -550,7 +623,6 @@
 
             let lessonsToShow = [];
 
-            // Проверяем, является ли текущий пользователь админом/директором
             const roleCheck = selected.toLowerCase();
             if (roleCheck.includes('диспетчер') || roleCheck.includes('зам. директора') || roleCheck.includes('директор')) {
                 const selectedGroup = adminGroupSelect ? adminGroupSelect.value : "";
