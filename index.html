@@ -388,7 +388,7 @@
                 teacherProfile.classList.remove('hidden');
                 teacherNameDisplay.textContent = currentTeacherName;
                 
-                if (currentTeacherName === "Диспетчер" || currentTeacherName === "Зам. директора по УР") {
+               if (currentTeacherName === "Диспетчер" || currentTeacherName === "Зам. директора по УР" || currentTeacherName === "Директор") {
                     adminSelector.classList.remove('hidden');
                     adminGroupSelector.classList.remove('hidden');
                     populateTeacherSelect();
@@ -589,7 +589,7 @@
 
             let lessonsToShow = [];
 
-            if (selected === "Диспетчер" || selected === "Зам. директора по УР") {
+          if (selected === "Диспетчер" || selected === "Зам. директора по УР" || selected === "Директор") {
                 const selectedGroup = adminGroupSelect ? adminGroupSelect.value : "";
                 const selectedTeacher = teacherSelect ? teacherSelect.value : "";
                 
