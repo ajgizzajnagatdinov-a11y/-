@@ -303,6 +303,10 @@
 
                 parseExcelRows(rows);
                 initGroups();
+                
+                // Если уже авторизован — обновляем данные кнопки после загрузки Excel
+                if (currentTeacherName) checkAuthState();
+                
             } catch (error) {
                 console.error("Ошибка:", error);
                 alert("Ошибка загрузки Excel: " + error.message);
@@ -331,8 +335,8 @@
                         let r = part.trim();
                         if (r === 'ч/з') r = 'ч.з';
                         if (r === 'а.з') r = 'с/з'; 
-                        if (r === 'ч.з.23') r = 'ч.з'; // Исправление
-                        if (r === 'з' || r === 'с' || r === 'з.23') return; // Игнорируем
+                        if (r === 'ч.з.23') r = 'ч.з';
+                        if (r === 'з' || r === 'с' || r === 'з.23') return; 
                         if (r && r !== '---' && r !== '------') {
                             roomsArray.push(r);
                         }
@@ -389,7 +393,6 @@
             if (currentMode === 'student' && currentStudentGroup) {
                 greetingElement.textContent = `${greeting} Группа ${currentStudentGroup}`;
             } else if (currentMode === 'teacher' && currentTeacherName) {
-                // Берем только имя после двоеточия, если оно есть
                 const namePart = currentTeacherName.includes(':') 
                     ? currentTeacherName.split(':')[1].trim() 
                     : currentTeacherName;
@@ -460,9 +463,32 @@
                     settingsBtn.classList.remove('hidden');
                     roomsBtn.classList.remove('hidden');
                 } else {
-                    adminSelector.classList.add('hidden');
-                    adminGroupSelector.classList.add('hidden');
-                    myBtn.classList.remove('hidden');
+                    // Ищем все группы, где этот преподаватель ведет РОВ
+                    const curatorGroups = [];
+                    if (scheduleData['ПОНЕДЕЛЬНИК']) {
+                        for (const group in scheduleData['ПОНЕДЕЛЬНИК']) {
+                            const lessons = scheduleData['ПОНЕДЕЛЬНИК'][group];
+                            for (const lesson of lessons) {
+                                if (lesson.subject.includes('РОВ') && lesson.teacher.includes(displayName)) {
+                                    if (!curatorGroups.includes(group)) {
+                                        curatorGroups.push(group);
+                                    }
+                                    break; 
+                                }
+                            }
+                        }
+                    }
+
+                    if (curatorGroups.length > 0) {
+                        adminSelector.classList.add('hidden');
+                        adminGroupSelector.classList.add('hidden');
+                        myBtn.classList.remove('hidden');
+                        myBtn.setAttribute('data-groups', JSON.stringify(curatorGroups));
+                    } else {
+                        adminSelector.classList.add('hidden');
+                        adminGroupSelector.classList.add('hidden');
+                        myBtn.classList.add('hidden');
+                    }
                     settingsBtn.classList.add('hidden');
                     roomsBtn.classList.add('hidden');
                 }
@@ -588,7 +614,11 @@
         window.showCuratorGroups = function() {
             const btn = document.getElementById('myGroupBtn');
             const groupsRaw = btn.getAttribute('data-groups');
-            if (!groupsRaw) return;
+            
+            if (!groupsRaw) {
+                alert("Ошибка: не удалось загрузить список групп.");
+                return;
+            }
             
             const groups = JSON.parse(groupsRaw);
             
