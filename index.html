@@ -185,7 +185,10 @@
                     <button class="btn-login" onclick="loginTeacher()">Войти</button>
                 </div>
                 <div id="teacherProfile" class="hidden">
-                    <p style="text-align: center; color: var(--text-muted); margin-bottom: 10px;">Вы вошли как: <strong id="teacherName" style="color: white;"></strong></p>
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px;">
+                        <p style="margin: 0; color: var(--text-muted);">Вы вошли как: <strong id="teacherName" style="color: white;"></strong></p>
+                        <button id="settingsBtn" class="hidden" onclick="openSettingsMenu()" style="background: none; border: 1px solid #3d4250; border-radius: 6px; color: var(--text-muted); cursor: pointer; padding: 2px 8px; font-size: 18px;">&#8942;</button>
+                    </div>
                     
                     <button id="myGroupBtn" class="btn-group hidden" onclick="showCuratorGroups()">Моя группа</button>
 
@@ -200,8 +203,6 @@
                             <option value="">Показать все группы</option>
                         </select>
                     </div>
-
-                    <button id="roomsBtn" class="btn-rooms hidden" onclick="showRoomsStatus()">Просмотр кабинетов</button>
 
                     <button class="btn-logout" onclick="logoutTeacher()">Выйти из профиля</button>
                 </div>
@@ -222,6 +223,7 @@
         <div id="schedule-content"></div>
     </div>
 
+    <!-- Модальное окно звонков -->
     <div class="modal-overlay" id="bellsModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -248,6 +250,24 @@
                 <tr><td class="num">5.</td><td class="time">11:00 — 11:40</td></tr>
                 <tr><td class="num">6.</td><td class="time">11:45 — 12:25</td></tr>
             </table>
+        </div>
+    </div>
+
+    <!-- Модальное окно настроек -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Настройки профиля</h2>
+                <button class="modal-close" onclick="closeSettingsMenu()">&times;</button>
+            </div>
+            
+            <button id="settingsRoomsBtn" class="btn-rooms hidden" onclick="showRoomsStatus(); closeSettingsMenu();">
+                Просмотр кабинетов
+            </button>
+            
+            <button class="btn-logout" onclick="logoutTeacher(); closeSettingsMenu();">
+                Выйти из профиля
+            </button>
         </div>
     </div>
 
@@ -424,18 +444,21 @@
                 
                 const role = currentTeacherName.toLowerCase();
                 const myBtn = document.getElementById('myGroupBtn');
-                const roomsBtn = document.getElementById('roomsBtn');
+                const settingsBtn = document.getElementById('settingsBtn');
+                const roomsBtn = document.getElementById('settingsRoomsBtn');
                 
                 if (role.includes('диспетчер') || role.includes('зам. директора') || role.includes('директор') || role.includes('зам. по вр')) {
                     adminSelector.classList.remove('hidden');
                     adminGroupSelector.classList.remove('hidden');
                     populateTeacherSelect();
                     myBtn.classList.add('hidden');
+                    settingsBtn.classList.remove('hidden');
                     roomsBtn.classList.remove('hidden');
                 } else {
                     adminSelector.classList.add('hidden');
                     adminGroupSelector.classList.add('hidden');
                     myBtn.classList.remove('hidden');
+                    settingsBtn.classList.add('hidden');
                     roomsBtn.classList.add('hidden');
                 }
             } else {
@@ -444,12 +467,20 @@
                 adminSelector.classList.add('hidden');
                 adminGroupSelector.classList.add('hidden');
                 document.getElementById('myGroupBtn').classList.add('hidden');
-                document.getElementById('roomsBtn').classList.add('hidden');
+                document.getElementById('settingsBtn').classList.add('hidden');
+                document.getElementById('settingsRoomsBtn').classList.add('hidden');
             }
             updateGreeting();
         }
 
-        // --- ПРОВЕРКА ЗАНЯТОСТИ КАБИНЕТОВ ---
+        window.openSettingsMenu = function() {
+            document.getElementById('settingsModal').classList.add('active');
+        };
+
+        window.closeSettingsMenu = function() {
+            document.getElementById('settingsModal').classList.remove('active');
+        };
+
         window.showRoomsStatus = function() {
             mainScreen.style.display = 'none';
             scheduleContent.style.display = 'block';
@@ -465,7 +496,6 @@
             const todayKey = todayObj.key;
             const dayData = scheduleData[todayKey] || {};
 
-            // Собираем все кабинеты
             const allRooms = new Set();
             for (const group in dayData) {
                 dayData[group].forEach(lesson => {
@@ -475,7 +505,6 @@
                 });
             }
 
-            // Группируем по кабинетам
             const roomsMap = {}; 
             for (const group in dayData) {
                 dayData[group].forEach(lesson => {
