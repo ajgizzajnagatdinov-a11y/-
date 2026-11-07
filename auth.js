@@ -9,6 +9,7 @@ const teacherRoles = {
 const teacherCodes = {
   "ADMIN2026": "Диспетчер", // это ужас 
   "ZAMUR": "Зам. директора по УР",
+  "DIRMPK": "Директор",
   "ADMINMPK.RU": "Администратор",
   "&MPK.RU24": "Администратор",
   "AGLETDINOVA2026": "Аглетдинова Ю.Д",
