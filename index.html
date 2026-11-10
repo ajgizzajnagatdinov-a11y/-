@@ -329,29 +329,28 @@
                 let roomsArray = [];
 
                 if (rawRoom) {
-                    // Явные проверки для составных кабинетов (чтобы не делились по слэшу)
-                    if (rawRoom === 'ч/з.23') {
-                        roomsArray.push('ч.з');
-                    } else if (rawRoom === 'ч/з') {
-                        roomsArray.push('ч.з');
-                    } else if (rawRoom === 'а.з') {
-                        roomsArray.push('с/з');
-                    } else if (rawRoom === 'ч.з.23') {
-                        roomsArray.push('ч.з');
-                    } else if (rawRoom === 'з' || rawRoom === 'с' || rawRoom === 'з.23') {
-                        // Игнорируем несуществующие кабинеты
-                    } else {
-                        // Если есть слэш (например, 16/биб), делим
-                        const parts = rawRoom.split('/');
+                    // Принудительно заменяем сложные записи на нормальные ДО деления
+                    let normalized = rawRoom;
+                    normalized = normalized.replace(/ч\/з\.23/g, 'ч.з');
+                    normalized = normalized.replace(/ч\.з\.23/g, 'ч.з');
+                    normalized = normalized.replace(/ч\/з/g, 'ч.з');
+                    normalized = normalized.replace(/а\.з/g, 'с/з');
+                    
+                    // Если после замены остался слэш (например, 16/биб), делим
+                    if (normalized.includes('/') && normalized !== 'с/з') {
+                        const parts = normalized.split('/');
                         parts.forEach(part => {
                             let r = part.trim();
-                            if (r === 'ч/з') r = 'ч.з';
-                            if (r === 'а.з') r = 'с/з';
                             if (r === 'з' || r === 'с' || r === 'з.23') return;
                             if (r && r !== '---' && r !== '------') {
                                 roomsArray.push(r);
                             }
                         });
+                    } else {
+                        // Если слэша нет (или это с/з), добавляем как есть
+                        if (normalized !== 'з' && normalized !== 'с' && normalized !== 'з.23' && normalized !== '---' && normalized !== '------') {
+                            roomsArray.push(normalized);
+                        }
                     }
                 }
 
