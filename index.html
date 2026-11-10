@@ -324,31 +324,32 @@
                 const subject = row[3] ? String(row[3]).trim() : '';
                 const teacher = row[5] ? String(row[5]).trim() : '';
 
-                // ОБРАБОТКА КАБИНЕТОВ
+                // ОБРАБОТКА КАБИНЕТОВ (ИСПРАВЛЕНО)
                 let rawRoom = row[4] ? String(row[4]).trim() : '';
                 let roomsArray = [];
 
                 if (rawRoom) {
-                    // Принудительно заменяем сложные записи на нормальные ДО деления
                     let normalized = rawRoom;
-                    normalized = normalized.replace(/ч\/з\.23/g, 'ч.з');
-                    normalized = normalized.replace(/ч\.з\.23/g, 'ч.з');
-                    normalized = normalized.replace(/ч\/з/g, 'ч.з');
-                    normalized = normalized.replace(/а\.з/g, 'с/з');
                     
-                    // Если после замены остался слэш (например, 16/биб), делим
+                    // 1. Приводим "ч/з", "ч.з", "ч з" к единому виду "ч.з" (сохраняя номер, если он есть)
+                    normalized = normalized.replace(/ч\s*[\/\.]\s*з/gi, 'ч.з');
+                    
+                    // 2. Заменяем "а.з" на "с/з"
+                    normalized = normalized.replace(/а\.з/gi, 'с/з');
+
+                    // 3. Обработка сдвоенных кабинетов (например, 16/биб)
                     if (normalized.includes('/') && normalized !== 'с/з') {
                         const parts = normalized.split('/');
                         parts.forEach(part => {
                             let r = part.trim();
-                            if (r === 'з' || r === 'с' || r === 'з.23') return;
+                            // Отсеиваем пустые обрывки и мусор
                             if (r && r !== '---' && r !== '------') {
                                 roomsArray.push(r);
                             }
                         });
                     } else {
                         // Если слэша нет (или это с/з), добавляем как есть
-                        if (normalized !== 'з' && normalized !== 'с' && normalized !== 'з.23' && normalized !== '---' && normalized !== '------') {
+                        if (normalized !== '---' && normalized !== '------') {
                             roomsArray.push(normalized);
                         }
                     }
