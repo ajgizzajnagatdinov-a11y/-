@@ -304,7 +304,6 @@
                 parseExcelRows(rows);
                 initGroups();
                 
-                // Если уже авторизован — обновляем данные кнопки после загрузки Excel
                 if (currentTeacherName) checkAuthState();
                 
             } catch (error) {
@@ -330,17 +329,28 @@
                 let roomsArray = [];
 
                 if (rawRoom) {
-                    const parts = rawRoom.split('/');
-                    parts.forEach(part => {
-                        let r = part.trim();
-                        if (r === 'ч/з') r = 'ч.з';
-                        if (r === 'а.з') r = 'с/з'; 
-                        if (r === 'ч.з.23') r = 'ч.з';
-                        if (r === 'з' || r === 'с' || r === 'з.23') return; 
-                        if (r && r !== '---' && r !== '------') {
-                            roomsArray.push(r);
-                        }
-                    });
+                    // Если кабинет состоит только из ч/з или а.з, не делим его
+                    if (rawRoom === 'ч/з') {
+                        roomsArray.push('ч.з');
+                    } else if (rawRoom === 'а.з') {
+                        roomsArray.push('с/з');
+                    } else if (rawRoom === 'ч.з.23') {
+                        roomsArray.push('ч.з');
+                    } else if (rawRoom === 'з' || rawRoom === 'с' || rawRoom === 'з.23') {
+                        // Игнорируем
+                    } else {
+                        // Если есть слэш (например, 16/биб), делим
+                        const parts = rawRoom.split('/');
+                        parts.forEach(part => {
+                            let r = part.trim();
+                            if (r === 'ч/з') r = 'ч.з';
+                            if (r === 'а.з') r = 'с/з';
+                            if (r === 'з' || r === 'с' || r === 'з.23') return;
+                            if (r && r !== '---' && r !== '------') {
+                                roomsArray.push(r);
+                            }
+                        });
+                    }
                 }
 
                 let dayKey = null;
@@ -463,7 +473,6 @@
                     settingsBtn.classList.remove('hidden');
                     roomsBtn.classList.remove('hidden');
                 } else {
-                    // Ищем все группы, где этот преподаватель ведет РОВ
                     const curatorGroups = [];
                     if (scheduleData['ПОНЕДЕЛЬНИК']) {
                         for (const group in scheduleData['ПОНЕДЕЛЬНИК']) {
