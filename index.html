@@ -329,15 +329,17 @@
                 let roomsArray = [];
 
                 if (rawRoom) {
-                    // Если кабинет состоит только из ч/з или а.з, не делим его
-                    if (rawRoom === 'ч/з') {
+                    // Явные проверки для составных кабинетов (чтобы не делились по слэшу)
+                    if (rawRoom === 'ч/з.23') {
+                        roomsArray.push('ч.з');
+                    } else if (rawRoom === 'ч/з') {
                         roomsArray.push('ч.з');
                     } else if (rawRoom === 'а.з') {
                         roomsArray.push('с/з');
                     } else if (rawRoom === 'ч.з.23') {
                         roomsArray.push('ч.з');
                     } else if (rawRoom === 'з' || rawRoom === 'с' || rawRoom === 'з.23') {
-                        // Игнорируем
+                        // Игнорируем несуществующие кабинеты
                     } else {
                         // Если есть слэш (например, 16/биб), делим
                         const parts = rawRoom.split('/');
@@ -473,6 +475,7 @@
                     settingsBtn.classList.remove('hidden');
                     roomsBtn.classList.remove('hidden');
                 } else {
+                    // Ищем все группы, где этот преподаватель ведет РОВ
                     const curatorGroups = [];
                     if (scheduleData['ПОНЕДЕЛЬНИК']) {
                         for (const group in scheduleData['ПОНЕДЕЛЬНИК']) {
